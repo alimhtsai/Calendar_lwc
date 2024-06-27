@@ -9,20 +9,34 @@ public with sharing class CalendarController {
 
         Map<String, Object> eventMap = (Map<String, Object>) JSON.deserializeUntyped(event);
         
-        Event newEvent = new Event();
-        newEvent.Subject = eventMap.get('title') != null ? (String)eventMap.get('title') : null;
+        MyCalendar__c newEvent = new MyCalendar__c();
+        newEvent.Name = eventMap.get('title') != null ? (String) eventMap.get('title') : null;
 
-        String startdate = eventMap.get('start') != null ? 
-                            ((String) eventMap.get('start')).replace('T', ' ').replace('.000Z', '') : 
-                            null;
-        String endDate = eventMap.get('end') != null ? 
-                            ((String)eventMap.get('end')).replace('T', ' ').replace('.000Z', '') : 
-                            null;
+        // Convert start and end dates to Datetime format
+        String startdateStr = eventMap.get('start') != null ? (String) eventMap.get('start') : null;
+        String enddateStr = eventMap.get('end') != null ? (String) eventMap.get('end') : null;
+        Datetime startDatetime = startdateStr != null ? parseIsoDatetime(startdateStr) : null;
+        Datetime endDatetime = enddateStr != null ? parseIsoDatetime(enddateStr) : null;
+        newEvent.StartDateTime__c = startDatetime;
+        newEvent.EndDateTime__c = endDatetime;
 
-        newEvent.StartDateTime = startdate != null ? Datetime.valueOfGmt(startdate) : null;
-        newEvent.EndDateTime = endDate != null ? Datetime.valueOfGmt(endDate) : null;
-        insert newEvent;
+        try {
+            insert newEvent;
+            return newEvent.Id;
+        } catch (Exception e) {
+            System.debug('Error inserting event: ' + e.getMessage());
+            return null;
+        }
+    }
 
-        return newEvent.Id;
+    private static Datetime parseIsoDatetime(String datetimeStr) {
+        // ISO 8601 format: 2024-06-30T10:00:00.000Z
+        String formattedStr = datetimeStr.replace('T', ' ').replace('Z', '');
+        try {
+            return Datetime.valueOfGmt(formattedStr);
+        } catch (Exception e) {
+            System.debug('Error parsing datetime: ' + e.getMessage());
+            return null;
+        }
     }
 }

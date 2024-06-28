@@ -1,6 +1,5 @@
 import { LightningElement, track } from 'lwc';
 import { loadScript, loadStyle } from 'lightning/platformResourceLoader';
-import { ShowToastEvent } from 'lightning/platformShowToastEvent';
 import FullCalendarJS from '@salesforce/resourceUrl/FullCalendarJS';
 import createEvent from '@salesforce/apex/CalendarController.createEvent';
 
@@ -71,34 +70,58 @@ export default class FullCalendarJs extends LightningElement {
     initialiseFullCalendarJs() {
 
         const ele = this.template.querySelector('div.fullcalendarjs');
+        const modal = this.template.querySelector('div.modalclass');
+
+        var self = this;
+
+        // to open the form with predefined fields
+        // TODO: to be moved outside this function
+        function openActivityForm(startDate, endDate){
+            self.startDate = startDate;
+            self.endDate = endDate;
+            self.openModal = true;
+        }
 
         $(ele).fullCalendar({
             header: {
-                left: 'prev,next today',
+                left: 'prev, next today',
                 center: 'title',
-                right: 'month,basicWeek,basicDay'
+                right: 'month, basicWeek, basicDay'
             },
             defaultDate: new Date(), // default day is today
             navLinks: true, // can click day/week names to navigate views
             editable: true,
+            
+            selectable: true, // to select the period of time
+
+            // to select the time period : https://fullcalendar.io/docs/v3/select-method
+            select: function (startDate, endDate) {
+                let stDate = startDate.format();
+                let edDate = endDate.format();
+                
+                openActivityForm(stDate, edDate);
+            },
             eventLimit: true, // allow "more" link when too many events
-            events: [
-                {
-                    title: 'Day 1',
-                    start: '2024-06-24T09:00:00',
-                    end: '2024-06-24T15:00:00',
-                },
-                {
-                    title: 'Day 2',
-                    start: '2024-06-25T09:00:00',
-                    end: '2024-06-25T15:00:00',
-                },
-                {
-                    title: 'Day 3',
-                    start: '2024-06-26T09:00:00',
-                    end: '2024-06-26T16:00:00',
-                },
-            ]
+            events: this.events, // all the events that are to be rendered - can be a duplicate statement here
+
+            // eventLimit: true, // allow "more" link when too many events
+            // events: [
+            //     {
+            //         title: 'Day 1',
+            //         start: '2024-06-24T09:00:00',
+            //         end: '2024-06-24T15:00:00',
+            //     },
+            //     {
+            //         title: 'Day 2',
+            //         start: '2024-06-25T09:00:00',
+            //         end: '2024-06-25T15:00:00',
+            //     },
+            //     {
+            //         title: 'Day 3',
+            //         start: '2024-06-26T09:00:00',
+            //         end: '2024-06-26T16:00:00',
+            //     },
+            // ]
         });
     }
 
@@ -155,15 +178,15 @@ export default class FullCalendarJs extends LightningElement {
                 this.openSpinner = false;
 
                 // show success toast message
-                this.showNotification('Success!!', 'Your event has been logged', 'success');
-
+                this.showToast('Your event has been created!', 'success');
+                
             })
             .catch(error => {
                 console.log(error);
                 this.openSpinner = false;
 
                 // show error toast message
-                this.showNotification('Oops', 'Something went wrong, please review console', 'error');
+                this.showToast('Something went wrong, please review console', 'error');
             })
     }
 
@@ -185,13 +208,11 @@ export default class FullCalendarJs extends LightningElement {
     /**
      * @description method to show toast events
      */
-    showNotification(title, message, variant) {
-        const evt = new ShowToastEvent({
-            title: title,
-            message: message,
-            variant: variant,
-        });
-        this.dispatchEvent(evt);
+    showToast(message, variant) {
+        const toast = this.template.querySelector('c-notification');
+        if (toast) {
+            toast.showToast(message, variant);
+        };
     }
 
     // Helper method to convert UTC datetime to local datetime

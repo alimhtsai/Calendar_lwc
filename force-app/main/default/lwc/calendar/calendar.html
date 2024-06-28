@@ -4,6 +4,8 @@
 @jslibrary: https://fullcalendar.io/ -->
 
 <template>
+    <c-notification></c-notification>
+    
     <!-- Spinner to show on waiting screens -->
     <template if:true={openSpinner}>
         <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>

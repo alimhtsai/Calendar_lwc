@@ -1,7 +1,8 @@
-import { LightningElement, track } from 'lwc';
+import { LightningElement, track, wire } from 'lwc';
 import { loadScript, loadStyle } from 'lightning/platformResourceLoader';
 import FullCalendarJS from '@salesforce/resourceUrl/FullCalendarJS';
 import createEvent from '@salesforce/apex/CalendarController.createEvent';
+import fetchEvents from '@salesforce/apex/CalendarController.fetchEvents';
 
 /**
  * FullCalendarJs
@@ -26,6 +27,47 @@ export default class FullCalendarJs extends LightningElement {
 
     // to store the orignal wire object to use in refreshApex method
     eventOriginalData = [];
+
+    // Get data from server
+    @wire(fetchEvents)
+    eventObj(value) {
+        this.eventOriginalData = value; // to use in refresh cache
+
+        const { data, error } = value;
+        if (data) {
+            console.log(JSON.stringify(data));
+
+            // format as fullcalendar event object
+            let events = data.map(event => {
+                let formatedStartDate = new Date(event.StartDateTime__c).toDateString();
+                let formatedEndDate = new Date(event.EndDateTime__c).toDateString();
+                return {
+                    id: event.Id,
+                    title: event.Name,
+                    start: event.StartDateTime__c,
+                    end: event.EndDateTime__c
+                };
+            });
+            this.events = JSON.parse(JSON.stringify(events));
+            console.log(JSON.stringify(this.events));
+            // this.error = undefined;
+
+            // load only on first wire call - 
+            // if events are not rendered, try to remove this 'if' condition and add directly 
+            if (!this.eventsRendered) {
+                // add events to calendar
+                const ele = this.template.querySelector("div.fullcalendarjs");
+                $(ele).fullCalendar('renderEvents', this.events, true);
+                this.eventsRendered = true;
+            }
+
+        } else if (error) {
+            this.events = [];
+            // this.error = 'No events are found';
+            console.error('Error occured in fetching', error)
+            this.showToast(error.message.body, 'error');
+        }
+    }
 
     /**
      * @description Standard lifecyle method 'renderedCallback'
@@ -69,6 +111,12 @@ export default class FullCalendarJs extends LightningElement {
      */
     initialiseFullCalendarJs() {
 
+        // Ensure jQuery is loaded
+        if (typeof $ !== 'function') {
+            console.error('jQuery is not loaded');
+            return;
+        }
+
         const ele = this.template.querySelector('div.fullcalendarjs');
         const modal = this.template.querySelector('div.modalclass');
 
@@ -76,7 +124,7 @@ export default class FullCalendarJs extends LightningElement {
 
         // to open the form with predefined fields
         // TODO: to be moved outside this function
-        function openActivityForm(startDate, endDate){
+        function openActivityForm(startDate, endDate) {
             self.startDate = startDate;
             self.endDate = endDate;
             self.openModal = true;
@@ -91,37 +139,18 @@ export default class FullCalendarJs extends LightningElement {
             defaultDate: new Date(), // default day is today
             navLinks: true, // can click day/week names to navigate views
             editable: true,
-            
             selectable: true, // to select the period of time
 
             // to select the time period : https://fullcalendar.io/docs/v3/select-method
             select: function (startDate, endDate) {
                 let stDate = startDate.format();
                 let edDate = endDate.format();
-                
+
                 openActivityForm(stDate, edDate);
             },
+
             eventLimit: true, // allow "more" link when too many events
             events: this.events, // all the events that are to be rendered - can be a duplicate statement here
-
-            // eventLimit: true, // allow "more" link when too many events
-            // events: [
-            //     {
-            //         title: 'Day 1',
-            //         start: '2024-06-24T09:00:00',
-            //         end: '2024-06-24T15:00:00',
-            //     },
-            //     {
-            //         title: 'Day 2',
-            //         start: '2024-06-25T09:00:00',
-            //         end: '2024-06-25T15:00:00',
-            //     },
-            //     {
-            //         title: 'Day 3',
-            //         start: '2024-06-26T09:00:00',
-            //         end: '2024-06-26T16:00:00',
-            //     },
-            // ]
         });
     }
 
@@ -140,10 +169,12 @@ export default class FullCalendarJs extends LightningElement {
                 this.title = ele.value;
             }
             if (ele.name === 'start') {
-                this.startDate = new Date(ele.value).toISOString(); // Convert to UTC/GMT
+                // this.startDate = new Date(ele.value).toISOString(); // Convert to UTC/GMT
+                this.startDate = ele.value.includes('.000Z') ? ele.value : ele.value + '.000Z';
             }
             if (ele.name === 'end') {
-                this.endDate = new Date(ele.value).toISOString(); // Convert to UTC/GMT
+                // this.endDate = new Date(ele.value).toISOString(); // Convert to UTC/GMT
+                this.endDate = ele.value.includes('.000Z') ? ele.value : ele.value + '.000Z';
             }
         });
 
@@ -164,8 +195,15 @@ export default class FullCalendarJs extends LightningElement {
                 newevent.id = result;
 
                 // convert back to local time zone for display in the calendar
-                newevent.start = this.convertToLocalTime(newevent.start);
-                newevent.end = this.convertToLocalTime(newevent.end);
+                // newevent.start = this.convertToLocalTime(newevent.start);
+                // newevent.end = this.convertToLocalTime(newevent.end);
+
+                // localStartTime = new Date(this.convertToLocalTime(newevent.start));
+                // newevent.start = localStartTime.toISOString();
+                // localEndTime = new Date(this.convertToLocalTime(newevent.end));
+                // newevent.end = localEndTime.toISOString();
+
+                console.log('new event 2: ', JSON.stringify(newevent));
 
                 // renderEvent is a fullcalendar method to add the event to calendar on UI
                 // documentation: https://fullcalendar.io/docs/v3/renderEvent
@@ -179,14 +217,14 @@ export default class FullCalendarJs extends LightningElement {
 
                 // show success toast message
                 this.showToast('Your event has been created!', 'success');
-                
+
             })
             .catch(error => {
                 console.log(error);
                 this.openSpinner = false;
 
                 // show error toast message
-                this.showToast('Something went wrong, please review console', 'error');
+                this.showToast(error.message.body, 'error');
             })
     }
 

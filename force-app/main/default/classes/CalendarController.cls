@@ -1,4 +1,12 @@
 public with sharing class CalendarController {
+
+    @AuraEnabled(cacheable=true)
+    public static List<MyCalendar__c> fetchEvents() {
+        return [SELECT Id, Name, StartDateTime__c, EndDateTime__c 
+                FROM MyCalendar__c 
+                ORDER BY CreatedDate DESC
+                LIMIT 100];
+    }
     
     @AuraEnabled
     public static Id createEvent(String event) {

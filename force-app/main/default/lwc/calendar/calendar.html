@@ -5,7 +5,7 @@
 
 <template>
     <c-notification></c-notification>
-    
+
     <!-- Spinner to show on waiting screens -->
     <template if:true={openSpinner}>
         <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
@@ -30,7 +30,6 @@
                         <h3 slot="title">
                             <span class="slds-p-right_small">
                                 <lightning-icon icon-name="standard:event" size="small">
-
                                 </lightning-icon>
                             </span>
                             {eachevent.title}
@@ -39,14 +38,16 @@
                             title="Remove" value={eachevent.id} size="small" onclick={removeEvent}>
                         </lightning-button-icon>
 
-                        <p class="slds-p-horizontal_small"> Start: 
-                            <lightning-formatted-text value={eachevent.start}>
-                            </lightning-formatted-text>
+                        <p class="slds-p-horizontal_small"> Start:
+                            <lightning-formatted-date-time value={eachevent.start} year="numeric" month="numeric"
+                                day="numeric" hour="2-digit" minute="2-digit" time-zone-name="short" hour12="true">
+                            </lightning-formatted-date-time>
                         </p>
-
-                        <p class="slds-p-horizontal_small"> End: 
-                            <lightning-formatted-text value={eachevent.end}>
-                            </lightning-formatted-text>
+                        <!-- without time-zone="GMT" the datatime is local time, but calendar is wrong-->
+                        <p class="slds-p-horizontal_small"> End:
+                            <lightning-formatted-date-time value={eachevent.end} year="numeric" month="numeric"
+                                day="numeric" hour="2-digit" minute="2-digit" time-zone-name="short" hour12="true">
+                            </lightning-formatted-date-time>
                         </p>
 
                         <!-- <p class="slds-p-horizontal_small"> Start: 

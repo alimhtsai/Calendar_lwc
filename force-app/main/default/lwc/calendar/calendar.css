@@ -2,3 +2,15 @@
     max-width: 1000px;
     margin: 40px auto;
 }
+
+.button {
+    margin: 5px;
+}
+
+.delete-button:hover {
+    background-color: rgb(252, 112, 112);
+}
+
+.edit-button:hover {
+    background-color: rgb(28, 254, 28);
+}

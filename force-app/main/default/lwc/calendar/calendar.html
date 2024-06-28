@@ -34,8 +34,15 @@
                             </span>
                             {eachevent.title}
                         </h3>
-                        <lightning-button-icon icon-name="action:remove" slot="actions" alternative-text="remove"
-                            title="Remove" value={eachevent.id} size="small" onclick={removeEvent}>
+
+                        <lightning-button-icon class="button edit-button cursor" icon-name="action:edit" slot="actions"
+                            alternative-text="edit" title="Edit" value={eachevent.id} size="small" 
+                            onclick={editEvent} data-recordid={eachevent.id}>
+                        </lightning-button-icon>
+
+                        <lightning-button-icon class="button delete-button cursor" icon-name="action:remove" slot="actions"
+                            alternative-text="remove" title="Remove" value={eachevent.id} size="small"
+                            onclick={removeEventHandler} data-recordid={eachevent.id}>
                         </lightning-button-icon>
 
                         <p class="slds-p-horizontal_small"> Start:

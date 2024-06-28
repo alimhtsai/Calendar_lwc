@@ -39,6 +39,20 @@ public with sharing class CalendarController {
         }
     }
 
+    @AuraEnabled
+    public static Boolean deleteEvent(String eventid) {
+        try {
+            if (!String.isBlank(eventid)) {
+                MyCalendar__c deleteEvent = new MyCalendar__c(Id = eventid);
+                delete deleteEvent;
+                return true;
+            }
+            return false;
+        } catch (Exception e) {
+            throw new AuraHandledException(e.getMessage());
+        }
+    }
+
     private static Datetime parseIsoDatetime(String datetimeStr) {
         // ISO 8601 format: 2024-06-30T10:00:00.000Z
         String formattedStr = datetimeStr.replace('T', ' ').replace('Z', '');

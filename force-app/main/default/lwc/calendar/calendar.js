@@ -1,8 +1,11 @@
 import { LightningElement, track, wire } from 'lwc';
 import { loadScript, loadStyle } from 'lightning/platformResourceLoader';
+import { refreshApex } from '@salesforce/apex';
+import LightningConfirm from 'lightning/confirm'
 import FullCalendarJS from '@salesforce/resourceUrl/FullCalendarJS';
 import createEvent from '@salesforce/apex/CalendarController.createEvent';
 import fetchEvents from '@salesforce/apex/CalendarController.fetchEvents';
+import deleteEvent from '@salesforce/apex/CalendarController.deleteEvent';
 
 /**
  * FullCalendarJs
@@ -17,6 +20,9 @@ export default class FullCalendarJs extends LightningElement {
     title;
     startDate;
     endDate;
+
+    // selected event id
+    selectedRecordId;
 
     eventsRendered = false; // to render initial events only once
     openSpinner = false; // to open the spinner in waiting screens
@@ -203,8 +209,6 @@ export default class FullCalendarJs extends LightningElement {
                 // localEndTime = new Date(this.convertToLocalTime(newevent.end));
                 // newevent.end = localEndTime.toISOString();
 
-                console.log('new event 2: ', JSON.stringify(newevent));
-
                 // renderEvent is a fullcalendar method to add the event to calendar on UI
                 // documentation: https://fullcalendar.io/docs/v3/renderEvent
                 $(ele).fullCalendar('renderEvent', newevent, true);
@@ -216,7 +220,7 @@ export default class FullCalendarJs extends LightningElement {
                 this.openSpinner = false;
 
                 // show success toast message
-                this.showToast('Your event has been created!', 'success');
+                this.showToast('Your event is created!', 'success');
 
             })
             .catch(error => {
@@ -236,6 +240,54 @@ export default class FullCalendarJs extends LightningElement {
         this.endDate = null;
         this.title = null;
         this.openModal = true;
+    }
+
+    /**
+     * @description: handle removal event
+     */
+    removeEventHandler(event) {
+        this.selectedRecordId = event.target.dataset.recordid;
+        console.log('selectedRecordId: ', this.selectedRecordId);
+        this.handleConfirm();
+    }
+
+    async handleConfirm() {
+        const result = await LightningConfirm.open({
+            message: 'Are you sure you want to delete this event?',
+            variant: 'headerless',
+            label: 'Delete Confirmation'
+        });
+        if (result) {
+            this.removeEvent();
+        } 
+    }
+
+    /**
+    * @description: remove the event with id
+    * @documentation: https://fullcalendar.io/docs/v3/removeEvents
+    */
+    removeEvent(event) {
+        // open the spinner
+        this.openSpinner = true;
+
+        // delete the event from server and then remove from UI
+        deleteEvent({ eventid: this.selectedRecordId })
+            .then(result => {
+                const ele = this.template.querySelector("div.fullcalendarjs");
+                $(ele).fullCalendar('removeEvents', [this.selectedRecordId]);
+                
+                this.showToast('Your event is deleted!', 'success');
+                this.openSpinner = false;
+                this.selectedRecordId = null
+
+                // refresh the grid
+                return refreshApex(this.eventOriginalData);
+            })
+            .catch(error => {
+                console.log(error);
+                this.showToast(error.message.body, 'error');
+                this.openSpinner = false;
+            });
     }
 
     // TODO: add the logic to support multiple input texts

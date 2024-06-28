@@ -35,18 +35,29 @@
                         </h3>
                         <lightning-button-icon icon-name="action:remove" slot="actions" alternative-text="remove"
                             title="Remove" value={eachevent.id} size="small" onclick={removeEvent}>
-
                         </lightning-button-icon>
 
-                        <p class="slds-p-horizontal_small"> Start: <lightning-formatted-date-time
-                                value={eachevent.start} year="numeric" month="numeric" day="numeric" hour="2-digit"
-                                minute="2-digit" time-zone="GMT" time-zone-name="short"
-                                hour12="true"></lightning-formatted-date-time></p>
-
-                        <p class="slds-p-horizontal_small">End <lightning-formatted-date-time value={eachevent.end}
-                                year="numeric" month="numeric" day="numeric" hour="2-digit" minute="2-digit"
-                                time-zone="GMT" time-zone-name="short" hour12="true"></lightning-formatted-date-time>
+                        <p class="slds-p-horizontal_small"> Start: 
+                            <lightning-formatted-text value={eachevent.start}>
+                            </lightning-formatted-text>
                         </p>
+
+                        <p class="slds-p-horizontal_small"> End: 
+                            <lightning-formatted-text value={eachevent.end}>
+                            </lightning-formatted-text>
+                        </p>
+
+                        <!-- <p class="slds-p-horizontal_small"> Start: 
+                            <lightning-formatted-date-time value={eachevent.start} year="numeric" month="numeric"
+                                day="numeric" hour="2-digit" minute="2-digit" time-zone-name="short" hour12="true">
+                            </lightning-formatted-date-time>
+                        </p>
+
+                        <p class="slds-p-horizontal_small"> End: 
+                            <lightning-formatted-date-time value={eachevent.end} year="numeric" month="numeric"
+                                day="numeric" hour="2-digit" minute="2-digit" time-zone-name="short" hour12="true">
+                            </lightning-formatted-date-time>
+                        </p> -->
 
                     </lightning-card>
                 </template>

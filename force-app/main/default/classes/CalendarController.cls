@@ -15,8 +15,10 @@ public with sharing class CalendarController {
         // Convert start and end dates to Datetime format
         String startdateStr = eventMap.get('start') != null ? (String) eventMap.get('start') : null;
         String enddateStr = eventMap.get('end') != null ? (String) eventMap.get('end') : null;
+
         Datetime startDatetime = startdateStr != null ? parseIsoDatetime(startdateStr) : null;
         Datetime endDatetime = enddateStr != null ? parseIsoDatetime(enddateStr) : null;
+
         newEvent.StartDateTime__c = startDatetime;
         newEvent.EndDateTime__c = endDatetime;
 

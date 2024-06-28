@@ -117,10 +117,10 @@ export default class FullCalendarJs extends LightningElement {
                 this.title = ele.value;
             }
             if (ele.name === 'start') {
-                this.startDate = ele.value.includes('.000Z') ? ele.value : ele.value + '.000Z';
+                this.startDate = new Date(ele.value).toISOString(); // Convert to UTC/GMT
             }
             if (ele.name === 'end') {
-                this.endDate = ele.value.includes('.000Z') ? ele.value : ele.value + '.000Z';
+                this.endDate = new Date(ele.value).toISOString(); // Convert to UTC/GMT
             }
         });
 
@@ -140,8 +140,12 @@ export default class FullCalendarJs extends LightningElement {
                 // id should be unique and useful to remove the event from UI - calendar
                 newevent.id = result;
 
+                // convert back to local time zone for display in the calendar
+                newevent.start = this.convertToLocalTime(newevent.start);
+                newevent.end = this.convertToLocalTime(newevent.end);
+
                 // renderEvent is a fullcalendar method to add the event to calendar on UI
-                // Documentation: https://fullcalendar.io/docs/v3/renderEvent
+                // documentation: https://fullcalendar.io/docs/v3/renderEvent
                 $(ele).fullCalendar('renderEvent', newevent, true);
 
                 // to display on UI with id from server
@@ -188,5 +192,11 @@ export default class FullCalendarJs extends LightningElement {
             variant: variant,
         });
         this.dispatchEvent(evt);
+    }
+
+    // Helper method to convert UTC datetime to local datetime
+    convertToLocalTime(utcDatetime) {
+        let localDatetime = new Date(utcDatetime);
+        return localDatetime.toLocaleString();
     }
 }

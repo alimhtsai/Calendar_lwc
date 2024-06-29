@@ -1,7 +1,7 @@
 import { LightningElement, track, wire } from 'lwc';
 import { loadScript, loadStyle } from 'lightning/platformResourceLoader';
 import { refreshApex } from '@salesforce/apex';
-import LightningConfirm from 'lightning/confirm'
+import LightningConfirm from 'lightning/confirm';
 import FullCalendarJS from '@salesforce/resourceUrl/FullCalendarJS';
 import createEvent from '@salesforce/apex/CalendarController.createEvent';
 import fetchEvents from '@salesforce/apex/CalendarController.fetchEvents';
@@ -28,7 +28,7 @@ export default class FullCalendarJs extends LightningElement {
     openSpinner = false; // to open the spinner in waiting screens
     openModal = false; // to open form
 
-    @track
+    // @track
     events = []; // all calendar events are stored in this field
 
     // to store the orignal wire object to use in refreshApex method
@@ -41,12 +41,10 @@ export default class FullCalendarJs extends LightningElement {
         const { data, error } = value;
 
         if (data) {
-            console.log('fetching data: ', JSON.stringify(data));
+            console.log('fetching data: ', data.length, JSON.parse(JSON.stringify(data)));
 
             // format as fullcalendar event object
             this.events = data.map(event => {
-                let formatedStartDate = new Date(event.StartDateTime__c).toDateString();
-                let formatedEndDate = new Date(event.EndDateTime__c).toDateString();
                 return {
                     id: event.Id,
                     title: event.Name,
@@ -152,7 +150,12 @@ export default class FullCalendarJs extends LightningElement {
             header: {
                 left: 'prev, next today',
                 center: 'title',
-                right: 'month, basicWeek, basicDay'
+                right: 'month, agendaWeek, basicDay'
+            },
+            navLinks: true,
+            navLinkDayClick: function(date, jsEvent) {
+                console.log('day', date.format()); // date is a moment
+                console.log('coords', jsEvent.pageX, jsEvent.pageY);
             },
             defaultDate: new Date(), // default day is today
             navLinks: true, // can click day/week names to navigate views
@@ -168,6 +171,7 @@ export default class FullCalendarJs extends LightningElement {
 
             eventLimit: true, // allow "more" link when too many events
             events: this.events, // all the events that are to be rendered - can be a duplicate statement here
+            timeFormat: 'h:mmt'
         });
     }
 
@@ -198,18 +202,25 @@ export default class FullCalendarJs extends LightningElement {
                 this.title = ele.value;
             }
             if (ele.name === 'start') {
-                // this.startDate = new Date(ele.value).toISOString(); // Convert to UTC/GMT
-                this.startDate = ele.value.includes('.000Z') ? ele.value : ele.value + '.000Z';
+                this.startDate = new Date(ele.value);
+                // this.startDate = ele.value.includes('.000Z') ? ele.value : ele.value + '.000Z';
             }
             if (ele.name === 'end') {
-                // this.endDate = new Date(ele.value).toISOString(); // Convert to UTC/GMT
-                this.endDate = ele.value.includes('.000Z') ? ele.value : ele.value + '.000Z';
+                this.endDate = new Date(ele.value);
+                // this.endDate = ele.value.includes('.000Z') ? ele.value : ele.value + '.000Z';
             }
         });
 
+        // getTimezoneOffset() returns the difference in minutes
+        // let utcStartDate = new Date(this.startDate.getTime() + (this.startDate.getTimezoneOffset() * 60000));
+        // let utcEndDate = new Date(this.endDate.getTime() + (this.endDate.getTimezoneOffset() * 60000));
+        
         // format as per fullcalendar event object to create and render
-        let newevent = { title: this.title, start: this.startDate, end: this.endDate };
-        console.log('new event: ', JSON.stringify(newevent));
+        let newevent = {
+            title: this.title,
+            start: this.startDate.toISOString(),
+            end: this.endDate.toISOString()
+        };
 
         // close the modal
         this.openModal = false;
@@ -222,15 +233,6 @@ export default class FullCalendarJs extends LightningElement {
                 // to populate the event on fullcalendar object
                 // id should be unique and useful to remove the event from UI - calendar
                 newevent.id = result;
-
-                // convert back to local time zone for display in the calendar
-                // newevent.start = this.convertToLocalTime(newevent.start);
-                // newevent.end = this.convertToLocalTime(newevent.end);
-
-                // localStartTime = new Date(this.convertToLocalTime(newevent.start));
-                // newevent.start = localStartTime.toISOString();
-                // localEndTime = new Date(this.convertToLocalTime(newevent.end));
-                // newevent.end = localEndTime.toISOString();
 
                 // renderEvent is a fullcalendar method to add the event to calendar on UI
                 // documentation: https://fullcalendar.io/docs/v3/renderEvent

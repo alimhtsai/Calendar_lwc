@@ -65,9 +65,7 @@ public with sharing class CalendarController {
                     WHERE Id = :eventId];
                 
                 Map<String, Object> eventMap = (Map<String, Object>) JSON.deserializeUntyped(event);
-    
-                // MyCalendar__c newEvent = new MyCalendar__c();
-        
+            
                 updateEvent.Name = (String) eventMap.get('title');
         
                 // Convert start and end dates to Datetime format
@@ -78,10 +76,6 @@ public with sharing class CalendarController {
         
                 updateEvent.StartDateTime__c = startDatetime;
                 updateEvent.EndDateTime__c = endDatetime;
-            
-                // updateEvent.Name = title;
-                // updateEvent.StartDateTime__c = startTime;
-                // updateEvent.EndDateTime__c = endTime;
 
                 update updateEvent;
                 return true;

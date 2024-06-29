@@ -187,8 +187,7 @@ export default class FullCalendarJs extends LightningElement {
             navLinks: true, // can click day/week names to navigate views
             editable: true,
             selectable: true, // to select the period of time
-            // dragScroll: true,
-            // droppable: true,
+            dragScroll: false,
             weekNumbers: true,
 
             // to select the time period : https://fullcalendar.io/docs/v3/select-method
@@ -206,31 +205,9 @@ export default class FullCalendarJs extends LightningElement {
             eventClick: function(calEvent, jsEvent, view) {
                 this.curEvent = calEvent;
                 console.log('calEvent.id: ', calEvent.id);
-                console.log('calEvent.title: ', calEvent.title);
-                console.log('calEvent.start', JSON.stringify(calEvent.start));
-                console.log('calEvent.end', JSON.stringify(calEvent.end));
-                
                 self.editEventClickHandler(calEvent);
             }
         });
-    }
-
-    /**
-     * @description cancel create a new event
-     */
-    handleCancel() {
-        this.openModal = false;
-        this.selectedRecordId = null;
-        this.curEvent = DEFAULT_EVENT_FORM;
-    }
-
-    handleSave(event) {
-        event.preventDefault();
-        if (this.selectedRecordId) {
-            this.editEvent(this.selectedRecordId);
-        } else {
-            this.saveEvent();
-        }
     }
 
     /**
@@ -397,20 +374,19 @@ export default class FullCalendarJs extends LightningElement {
     * @documentation: https://fullcalendar.io/docs/v3/updateEvent
     */
     editEvent(eventId) {
-        // open the spinner
         this.openSpinner = true;
 
-        updateEvent({ 'eventId': eventId, 'event': JSON.stringify(this.curEvent) })
+        updateEvent({ 'eventId': this.selectedRecordId, 'event': JSON.stringify(this.curEvent) })
             .then((result) => {
                 const ele = this.template.querySelector("div.fullcalendarjs");
 
                 // find the event to update
                 // documentation: https://fullcalendar.io/docs/v3/clientEvents
                 let calendarEvent = $(ele).fullCalendar('clientEvents', this.curEvent.id)[0];
-                console.log('calendarEvent: ', JSON.parse(JSON.stringify(calendarEvent)));
 
                 // update the event properties
                 if (calendarEvent) {
+                    calendarEvent.id = this.curEvent.id;
                     calendarEvent.title = this.curEvent.title;
                     calendarEvent.start = this.curEvent.start;
                     calendarEvent.end = this.curEvent.end;
@@ -418,25 +394,24 @@ export default class FullCalendarJs extends LightningElement {
                     // update the event in the calendar
                     $(ele).fullCalendar('updateEvent', calendarEvent);
 
-                    // show success toast
-                    this.showToast('Your event is updated!', 'success');
-
                     // $(ele).fullCalendar('renderEvent', calendarEvent);
                     // console.log('render event: ', JSON.stringify(calendarEvent));
                 }
 
-                // // update the local properties
-                // this.title = this.curEvent.title;
-                // this.startDate = this.curEvent.start;
-                // this.endDate = this.curEvent.end;
-
-                // close the spinner
-                this.openSpinner = false;
+                // Update the local properties
+                this.title = this.curEvent.title;
+                this.startDate = this.curEvent.start;
+                this.endDate = this.curEvent.end;
 
                 // reset selected record ID and close modal
                 this.selectedRecordId = null;
                 this.openModal = false;
                 this.curEvent = DEFAULT_EVENT_FORM;
+
+                // show success toast
+                this.showToast('Your event is updated!', 'success');
+
+                this.openSpinner = false;
 
                 // refresh the grid
                 this.refresh();
@@ -448,10 +423,32 @@ export default class FullCalendarJs extends LightningElement {
             })
     }
 
-    // handleKeyup(event) {
-    //     this.title = event.target.value;
-    // }
+    /**
+     * @description handle actions when users click the "Cancel" button
+     */
+    handleCancel() {
+        this.openModal = false;
+        this.selectedRecordId = null;
+        this.curEvent = DEFAULT_EVENT_FORM;
+    }
 
+    /**
+     * @description handle actions when users click the "Save" button
+     * @param {*} event 
+     */
+    handleSave(event) {
+        event.preventDefault();
+        if (this.selectedRecordId) {
+            this.editEvent(this.selectedRecordId);
+        } else {
+            this.saveEvent();
+        }
+    }
+
+    /**
+     * @description handle changes when users modify the form
+     * @param {*} event 
+     */
     changeHandler(event) {
         const { name, value } = event.target;
         this.curEvent = { ...this.curEvent, [name]: value };
@@ -468,17 +465,23 @@ export default class FullCalendarJs extends LightningElement {
         };
     }
 
-    // Helper method to convert UTC datetime to local datetime
-    convertToLocalTime(utcDatetime) {
-        let localDatetime = new Date(utcDatetime);
-        return localDatetime.toLocaleString();
-    }
-
+    /**
+     * @description refresh the events
+     */
     refresh() {
         return refreshApex(this.eventOriginalData);
     }
 
+    /**
+     * @description decide the current modal name based on whether the selectedRecordId is selected or not
+     */
     get ModalName() {
         return this.selectedRecordId ? "Update Event" : "Add Event";
     }
+
+    // // Helper method to convert UTC datetime to local datetime
+    // convertToLocalTime(utcDatetime) {
+    //     let localDatetime = new Date(utcDatetime);
+    //     return localDatetime.toLocaleString();
+    // }
 }

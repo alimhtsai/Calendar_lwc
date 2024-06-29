@@ -40,15 +40,55 @@ public with sharing class CalendarController {
     }
 
     @AuraEnabled
-    public static Boolean deleteEvent(String eventid) {
+    public static Boolean deleteEvent(String eventId) {
         try {
-            if (!String.isBlank(eventid)) {
-                MyCalendar__c deleteEvent = new MyCalendar__c(Id = eventid);
+            if (!String.isBlank(eventId)) {
+                MyCalendar__c deleteEvent = new MyCalendar__c(Id = eventId);
                 delete deleteEvent;
+                // delete [SELECT Id FROM MyCalendar__c Where Id=:eventid];
                 return true;
             }
             return false;
         } catch (Exception e) {
+            throw new AuraHandledException(e.getMessage());
+        }
+    }
+
+    @AuraEnabled
+    public static Boolean updateEvent(String eventId, String event) {
+        try {
+            if (!String.isBlank(eventId)) {
+                MyCalendar__c updateEvent = [
+                    SELECT 
+                    Id, Name, StartDateTime__c, EndDateTime__c 
+                    FROM MyCalendar__c
+                    WHERE Id = :eventId];
+                
+                Map<String, Object> eventMap = (Map<String, Object>) JSON.deserializeUntyped(event);
+    
+                // MyCalendar__c newEvent = new MyCalendar__c();
+        
+                updateEvent.Name = (String) eventMap.get('title');
+        
+                // Convert start and end dates to Datetime format
+                String startdateStr = (String) eventMap.get('start');
+                String enddateStr = (String) eventMap.get('end');
+                Datetime startDatetime = parseIsoDatetime(startdateStr);
+                Datetime endDatetime = parseIsoDatetime(enddateStr);
+        
+                updateEvent.StartDateTime__c = startDatetime;
+                updateEvent.EndDateTime__c = endDatetime;
+            
+                // updateEvent.Name = title;
+                // updateEvent.StartDateTime__c = startTime;
+                // updateEvent.EndDateTime__c = endTime;
+
+                update updateEvent;
+                return true;
+            }
+            return false;
+        } catch (Exception e) {
+            System.debug('error updating event' + e.getMessage());
             throw new AuraHandledException(e.getMessage());
         }
     }

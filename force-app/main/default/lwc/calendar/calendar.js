@@ -6,6 +6,7 @@ import FullCalendarJS from '@salesforce/resourceUrl/FullCalendarJS';
 import createEvent from '@salesforce/apex/CalendarController.createEvent';
 import fetchEvents from '@salesforce/apex/CalendarController.fetchEvents';
 import deleteEvent from '@salesforce/apex/CalendarController.deleteEvent';
+import updateEvent from '@salesforce/apex/CalendarController.updateEvent';
 
 const DEFAULT_EVENT_FORM = {
     title: "",
@@ -21,6 +22,7 @@ export default class FullCalendarJs extends LightningElement {
 
     // to avoid the recursion from renderedcallback
     fullCalendarJsInitialised = false;
+    calendarLoaded = false;
 
     curEvent = DEFAULT_EVENT_FORM;
 
@@ -42,9 +44,29 @@ export default class FullCalendarJs extends LightningElement {
     // to store the orignal wire object to use in refreshApex method
     eventOriginalData = [];
 
+    /**
+     * @description avoid race condition
+     * If $ loads before fetchEvents returns data, no error will appear. Otherwise, if the wire gets done first, 
+     * then $ is not defined and you'll get this error. This is known as a "race condition".
+     * You'll want a separate method to wait for this.events to be set and $ to be available, 
+     * then call that method from both places.
+     * https://salesforce.stackexchange.com/questions/391810/fullcalendar-rendering-error-fullcalendar-is-not-a-function
+     */
+    renderCalendar() {
+        if (!this.calendarLoaded || this.events.length === 0) {
+            return;
+        }
+        // load jQuery
+        this.initialiseFullCalendarJs();
+    }
+
     // Get data from server
     @wire(fetchEvents)
     eventList(value) {
+
+        console.log('start fecthing...');
+        console.log('this.calendarLoaded: ', this.calendarLoaded);
+
         this.eventOriginalData = value; // to use in refresh cache
         const { data, error } = value;
 
@@ -59,20 +81,27 @@ export default class FullCalendarJs extends LightningElement {
                 };
             });
 
-            console.log('this.events: ', JSON.stringify(this.events));
-            console.log('this.eventsRendered: ', this.eventsRendered);
-            console.log('this.fullCalendarJsInitialised: ', this.fullCalendarJsInitialised);
-            
+            // console.log('this.events: ', JSON.parse(JSON.stringify(this.events)));
+
+            // render the calendar if data is ready
+            if (!this.eventsRendered) {
+                this.renderCalendar();
+            }
+
             // load only on first wire call
             // if events are not rendered, try to remove this 'if' condition and add directly 
             // documentation: https://fullcalendar.io/docs/v3/renderEvents
-            if (!this.eventsRendered && !this.fullCalendarJsInitialised) {
-                // add events to calendar
-                console.log('test');
-                const ele = this.template.querySelector("div.fullcalendarjs");
-                $(ele).fullCalendar('renderEvents', JSON.stringify(this.events), true);
-                this.eventsRendered = true;
-            }
+
+            // // add events to calendar
+            // if (!this.eventsRendered || !this.calendarLoaded) {
+            //     this.renderCalendar();
+            //     console.log('this.eventsRendered before: ', this.eventsRendered);
+            // } else {
+            //     const ele = this.template.querySelector("div.fullcalendarjs");
+            //     $(ele).fullCalendar('renderEvents', JSON.stringify(this.events), true);
+            //     this.eventsRendered = true;
+            //     console.log('this.eventsRendered after: ', this.eventsRendered);
+            // }
 
         } else if (error) {
             this.events = [];
@@ -83,9 +112,8 @@ export default class FullCalendarJs extends LightningElement {
     }
 
     /**
-     * @description Standard lifecyle method 'renderedCallback'
-     *              Ensures that the page loads and renders the 
-     *              container before doing anything else
+     * @description Standard lifecyle method 'renderedCallback',
+     *              Ensures that the page loads and renders the container before doing anything else
      */
     renderedCallback() {
 
@@ -94,6 +122,7 @@ export default class FullCalendarJs extends LightningElement {
             return;
         }
 
+        // Promise.all is here from renderedCallback
         // executes all loadScript and loadStyle promises and only resolves them once all promises are done
         Promise.all([
             loadScript(this, FullCalendarJS + '/jquery.min.js'),
@@ -103,19 +132,22 @@ export default class FullCalendarJs extends LightningElement {
             // loadStyle(this, FullCalendarJS + '/fullcalendar.print.min.css')
         ])
             .then(() => {
-                // ensure jQuery is available globally
-                window.$ = window.jQuery;
                 // initialize the full calendar
-                this.initialiseFullCalendarJs();
                 this.fullCalendarJsInitialised = true;
-                console.log('fullCalendarJsInitialised', this.fullCalendarJsInitialised);
+                this.calendarLoaded = true;
+
+                // render the calendar if data is ready
+                if (this.events.length > 0) {
+                    this.renderCalendar();
+                }
+                this.initialiseFullCalendarJs();
             })
             .catch(error => {
-                console.error({
-                    message: 'Error occured on FullCalendarJS',
-                    error
-                });
+                console.error('Error occured on FullCalendarJS', error);
             })
+        
+        console.log('this.calendarLoaded in renderedCallback: ', this.calendarLoaded);
+        // console.log('this.events in renderedCallback: ', JSON.parse(JSON.stringify(this.events)));
     }
 
     /**
@@ -125,11 +157,11 @@ export default class FullCalendarJs extends LightningElement {
      */
     initialiseFullCalendarJs() {
 
-        // Ensure jQuery is loaded
-        if (typeof $ !== 'function') {
-            console.error('jQuery is not loaded');
-            return;
-        }
+        // // Ensure jQuery is loaded
+        // if (typeof $ !== 'function') {
+        //     console.error('jQuery is not loaded');
+        //     return;
+        // }
 
         const ele = this.template.querySelector('div.fullcalendarjs');
         const modal = this.template.querySelector('div.modalclass');
@@ -155,6 +187,9 @@ export default class FullCalendarJs extends LightningElement {
             navLinks: true, // can click day/week names to navigate views
             editable: true,
             selectable: true, // to select the period of time
+            // dragScroll: true,
+            // droppable: true,
+            weekNumbers: true,
 
             // to select the time period : https://fullcalendar.io/docs/v3/select-method
             select: function (startDate, endDate) {
@@ -165,7 +200,18 @@ export default class FullCalendarJs extends LightningElement {
 
             eventLimit: true, // allow "more" link when too many events
             events: this.events, // all the events that are to be rendered - can be a duplicate statement here
-            timeFormat: 'h:mmt'
+            timeFormat: 'h:mmt',
+
+            // https://fullcalendar.io/docs/v3/eventClick
+            eventClick: function(calEvent, jsEvent, view) {
+                this.curEvent = calEvent;
+                console.log('calEvent.id: ', calEvent.id);
+                console.log('calEvent.title: ', calEvent.title);
+                console.log('calEvent.start', JSON.stringify(calEvent.start));
+                console.log('calEvent.end', JSON.stringify(calEvent.end));
+                
+                self.editEventClickHandler(calEvent);
+            }
         });
     }
 
@@ -180,7 +226,11 @@ export default class FullCalendarJs extends LightningElement {
 
     handleSave(event) {
         event.preventDefault();
-        this.saveEvent();
+        if (this.selectedRecordId) {
+            this.editEvent(this.selectedRecordId);
+        } else {
+            this.saveEvent();
+        }
     }
 
     /**
@@ -209,7 +259,7 @@ export default class FullCalendarJs extends LightningElement {
         // getTimezoneOffset() returns the difference in minutes
         // let utcStartDate = new Date(this.startDate.getTime() + (this.startDate.getTimezoneOffset() * 60000));
         // let utcEndDate = new Date(this.endDate.getTime() + (this.endDate.getTimezoneOffset() * 60000));
-        
+
         // format as per fullcalendar event object to create and render
         let newevent = {
             title: this.title,
@@ -244,12 +294,12 @@ export default class FullCalendarJs extends LightningElement {
                 // show success toast message
                 this.showToast('Your event is created!', 'success');
 
+                // refresh the grid
+                this.refresh();
             })
             .catch(error => {
-                console.log(error);
+                console.error('Error occured on saveEvent', error);
                 this.openSpinner = false;
-
-                // show error toast message
                 this.showToast(error.message.body, 'error');
             })
     }
@@ -293,20 +343,20 @@ export default class FullCalendarJs extends LightningElement {
         this.openSpinner = true;
 
         // delete the event from server and then remove from UI
-        deleteEvent({ eventid: this.selectedRecordId })
-            .then(result => {
+        deleteEvent({ 'eventId': this.selectedRecordId })
+            .then((result) => {
                 const ele = this.template.querySelector("div.fullcalendarjs");
                 $(ele).fullCalendar('removeEvents', [this.selectedRecordId]);
 
                 this.showToast('Your event is deleted!', 'success');
                 this.openSpinner = false;
-                this.selectedRecordId = null
+                this.selectedRecordId = null;
 
                 // refresh the grid
                 this.refresh();
             })
             .catch(error => {
-                console.log(error);
+                console.error('Error occured on removeEvent', error);
                 this.showToast(error.message.body, 'error');
                 this.openSpinner = false;
             });
@@ -314,29 +364,99 @@ export default class FullCalendarJs extends LightningElement {
 
     editEventHandler(event) {
         this.selectedRecordId = event.target.dataset.recordid;
-
         const eventRecord = this.events.find(item => item.id === this.selectedRecordId);
-        console.log('eventRecord: ', JSON.stringify(eventRecord));
 
         this.curEvent = {
+            id: eventRecord.id,
             title: eventRecord.title,
             start: eventRecord.start,
             end: eventRecord.end
         }
 
-        console.log('this.curEvent: ', JSON.stringify(this.curEvent));
+        console.log('this.curEvent id in editEventHandler: ', JSON.stringify(this.curEvent.id));
         this.openModal = true;
     }
 
-    handleKeyup(event) {
-        this.title = event.target.value;
+    editEventClickHandler(event) {
+        this.selectedRecordId = event.id;
+        const eventRecord = this.events.find(item => item.id === this.selectedRecordId);
+
+        this.curEvent = {
+            id: eventRecord.id,
+            title: eventRecord.title,
+            start: eventRecord.start,
+            end: eventRecord.end
+        }
+
+        console.log('this.curEvent id in editEventClickHandler: ', JSON.stringify(this.curEvent.id));
+        this.openModal = true;
     }
 
-    // changeHandler(event) {
-    //     const {name, value} = event.target;
-    //     this.curEvent = {...this.curEvent, [name]:value};
-    //     console.log('this.curEvent: ', JSON.stringify(this.curEvent));
+    /**
+    * @description: edit the event with id
+    * @documentation: https://fullcalendar.io/docs/v3/updateEvent
+    */
+    editEvent(eventId) {
+        // open the spinner
+        this.openSpinner = true;
+
+        updateEvent({ 'eventId': eventId, 'event': JSON.stringify(this.curEvent) })
+            .then((result) => {
+                const ele = this.template.querySelector("div.fullcalendarjs");
+
+                // find the event to update
+                // documentation: https://fullcalendar.io/docs/v3/clientEvents
+                let calendarEvent = $(ele).fullCalendar('clientEvents', this.curEvent.id)[0];
+                console.log('calendarEvent: ', JSON.parse(JSON.stringify(calendarEvent)));
+
+                // update the event properties
+                if (calendarEvent) {
+                    calendarEvent.title = this.curEvent.title;
+                    calendarEvent.start = this.curEvent.start;
+                    calendarEvent.end = this.curEvent.end;
+
+                    // update the event in the calendar
+                    $(ele).fullCalendar('updateEvent', calendarEvent);
+
+                    // show success toast
+                    this.showToast('Your event is updated!', 'success');
+
+                    // $(ele).fullCalendar('renderEvent', calendarEvent);
+                    // console.log('render event: ', JSON.stringify(calendarEvent));
+                }
+
+                // // update the local properties
+                // this.title = this.curEvent.title;
+                // this.startDate = this.curEvent.start;
+                // this.endDate = this.curEvent.end;
+
+                // close the spinner
+                this.openSpinner = false;
+
+                // reset selected record ID and close modal
+                this.selectedRecordId = null;
+                this.openModal = false;
+                this.curEvent = DEFAULT_EVENT_FORM;
+
+                // refresh the grid
+                this.refresh();
+            })
+            .catch(error => {
+                console.error('Error occured on editEvent', error);
+                this.showToast(error.message.body, 'error');
+                this.openSpinner = false;
+            })
+    }
+
+    // handleKeyup(event) {
+    //     this.title = event.target.value;
     // }
+
+    changeHandler(event) {
+        const { name, value } = event.target;
+        this.curEvent = { ...this.curEvent, [name]: value };
+        console.log('this.curEvent id in changeHandler: ', this.curEvent.id);
+    }
 
     /**
      * @description method to show toast events

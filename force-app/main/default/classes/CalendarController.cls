@@ -18,14 +18,14 @@ public with sharing class CalendarController {
         Map<String, Object> eventMap = (Map<String, Object>) JSON.deserializeUntyped(event);
         
         MyCalendar__c newEvent = new MyCalendar__c();
-        newEvent.Name = eventMap.get('title') != null ? (String) eventMap.get('title') : null;
+
+        newEvent.Name = (String) eventMap.get('title');
 
         // Convert start and end dates to Datetime format
-        String startdateStr = eventMap.get('start') != null ? (String) eventMap.get('start') : null;
-        String enddateStr = eventMap.get('end') != null ? (String) eventMap.get('end') : null;
-
-        Datetime startDatetime = startdateStr != null ? parseIsoDatetime(startdateStr) : null;
-        Datetime endDatetime = enddateStr != null ? parseIsoDatetime(enddateStr) : null;
+        String startdateStr = (String) eventMap.get('start');
+        String enddateStr = (String) eventMap.get('end');
+        Datetime startDatetime = parseIsoDatetime(startdateStr);
+        Datetime endDatetime = parseIsoDatetime(enddateStr);
 
         newEvent.StartDateTime__c = startDatetime;
         newEvent.EndDateTime__c = endDatetime;

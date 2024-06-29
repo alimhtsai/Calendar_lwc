@@ -7,6 +7,12 @@ import createEvent from '@salesforce/apex/CalendarController.createEvent';
 import fetchEvents from '@salesforce/apex/CalendarController.fetchEvents';
 import deleteEvent from '@salesforce/apex/CalendarController.deleteEvent';
 
+const DEFAULT_EVENT_FORM = {
+    title: "",
+    start: "",
+    end: ""
+}
+
 /**
  * FullCalendarJs
  * @description Full Calendar JS - Lightning Web Components
@@ -15,6 +21,8 @@ export default class FullCalendarJs extends LightningElement {
 
     // to avoid the recursion from renderedcallback
     fullCalendarJsInitialised = false;
+
+    curEvent = DEFAULT_EVENT_FORM;
 
     // fields to store the event data
     title;
@@ -28,7 +36,7 @@ export default class FullCalendarJs extends LightningElement {
     openSpinner = false; // to open the spinner in waiting screens
     openModal = false; // to open form
 
-    // @track
+    @track
     events = []; // all calendar events are stored in this field
 
     // to store the orignal wire object to use in refreshApex method
@@ -41,8 +49,6 @@ export default class FullCalendarJs extends LightningElement {
         const { data, error } = value;
 
         if (data) {
-            console.log('fetching data: ', data.length, JSON.parse(JSON.stringify(data)));
-
             // format as fullcalendar event object
             this.events = data.map(event => {
                 return {
@@ -53,28 +59,20 @@ export default class FullCalendarJs extends LightningElement {
                 };
             });
 
-            // this.events = JSON.parse(JSON.stringify(events));
-            // console.log(JSON.stringify(this.events));
-            // this.error = undefined;
-
-            // load only on first wire call - 
-            // if events are not rendered, try to remove this 'if' condition and add directly 
+            console.log('this.events: ', JSON.stringify(this.events));
+            console.log('this.eventsRendered: ', this.eventsRendered);
+            console.log('this.fullCalendarJsInitialised: ', this.fullCalendarJsInitialised);
             
-            if (!this.eventsRendered && this.fullCalendarJsInitialised) {
+            // load only on first wire call
+            // if events are not rendered, try to remove this 'if' condition and add directly 
+            // documentation: https://fullcalendar.io/docs/v3/renderEvents
+            if (!this.eventsRendered && !this.fullCalendarJsInitialised) {
                 // add events to calendar
+                console.log('test');
                 const ele = this.template.querySelector("div.fullcalendarjs");
-                $(ele).fullCalendar('renderEvents', this.events, true);
+                $(ele).fullCalendar('renderEvents', JSON.stringify(this.events), true);
                 this.eventsRendered = true;
             }
-
-            // if (!this.eventsRendered) {
-            //     // add events to calendar
-            //     const ele = this.template.querySelector("div.fullcalendarjs");
-            //     $(ele).fullCalendar('renderEvents', this.events, true);
-            //     this.eventsRendered = true;
-            // }
-
-            console.log('eventsRendered: ', this.eventsRendered);
 
         } else if (error) {
             this.events = [];
@@ -141,8 +139,8 @@ export default class FullCalendarJs extends LightningElement {
         // to open the form with predefined fields
         // TODO: to be moved outside this function
         function openActivityForm(startDate, endDate) {
-            self.startDate = startDate;
-            self.endDate = endDate;
+            self.curEvent.start = startDate;
+            self.curEvent.end = endDate;
             self.openModal = true;
         }
 
@@ -153,10 +151,6 @@ export default class FullCalendarJs extends LightningElement {
                 right: 'month, agendaWeek, basicDay'
             },
             navLinks: true,
-            navLinkDayClick: function(date, jsEvent) {
-                console.log('day', date.format()); // date is a moment
-                console.log('coords', jsEvent.pageX, jsEvent.pageY);
-            },
             defaultDate: new Date(), // default day is today
             navLinks: true, // can click day/week names to navigate views
             editable: true,
@@ -181,6 +175,7 @@ export default class FullCalendarJs extends LightningElement {
     handleCancel() {
         this.openModal = false;
         this.selectedRecordId = null;
+        this.curEvent = DEFAULT_EVENT_FORM;
     }
 
     handleSave(event) {
@@ -218,8 +213,10 @@ export default class FullCalendarJs extends LightningElement {
         // format as per fullcalendar event object to create and render
         let newevent = {
             title: this.title,
-            start: this.startDate.toISOString(),
-            end: this.endDate.toISOString()
+            // start: this.startDate.toISOString(),
+            // end: this.endDate.toISOString()
+            start: this.startDate,
+            end: this.endDate
         };
 
         // close the modal
@@ -315,10 +312,31 @@ export default class FullCalendarJs extends LightningElement {
             });
     }
 
-    // TODO: add the logic to support multiple input texts
+    editEventHandler(event) {
+        this.selectedRecordId = event.target.dataset.recordid;
+
+        const eventRecord = this.events.find(item => item.id === this.selectedRecordId);
+        console.log('eventRecord: ', JSON.stringify(eventRecord));
+
+        this.curEvent = {
+            title: eventRecord.title,
+            start: eventRecord.start,
+            end: eventRecord.end
+        }
+
+        console.log('this.curEvent: ', JSON.stringify(this.curEvent));
+        this.openModal = true;
+    }
+
     handleKeyup(event) {
         this.title = event.target.value;
     }
+
+    // changeHandler(event) {
+    //     const {name, value} = event.target;
+    //     this.curEvent = {...this.curEvent, [name]:value};
+    //     console.log('this.curEvent: ', JSON.stringify(this.curEvent));
+    // }
 
     /**
      * @description method to show toast events
@@ -338,5 +356,9 @@ export default class FullCalendarJs extends LightningElement {
 
     refresh() {
         return refreshApex(this.eventOriginalData);
+    }
+
+    get ModalName() {
+        return this.selectedRecordId ? "Update Event" : "Add Event";
     }
 }

@@ -47,12 +47,12 @@
 
                         <p class="slds-p-horizontal_small"> Start:
                             <lightning-formatted-date-time value={eachevent.start} year="numeric" month="numeric"
-                                day="numeric" hour="2-digit" minute="2-digit" time-zone="GMT" time-zone-name="short" hour12="true">
+                                day="numeric" hour="2-digit" minute="2-digit" time-zone-name="short" hour12="true">
                             </lightning-formatted-date-time>
                         </p>
                         <p class="slds-p-horizontal_small"> End:
                             <lightning-formatted-date-time value={eachevent.end} year="numeric" month="numeric"
-                                day="numeric" hour="2-digit" minute="2-digit" time-zone="GMT" time-zone-name="short" hour12="true">
+                                day="numeric" hour="2-digit" minute="2-digit" time-zone-name="short" hour12="true">
                             </lightning-formatted-date-time>
                         </p>
 
@@ -84,10 +84,10 @@
                     <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
                         <lightning-input label="Title" name="title" type="text" onchange={changeHandler}
                             value={curEvent.title} required></lightning-input>
-                        <lightning-input label="Start Date" name="start" type="datetime" onchange={changeHandler}
-                            value={curEvent.start} timezone="GMT" required></lightning-input>
-                        <lightning-input label="End Date" name="end" type="datetime" onchange={changeHandler}
-                            value={curEvent.end} timezone="GMT" required></lightning-input>
+                        <lightning-input label="Start Date" name="start" type="datetime" timezone="GMT" onchange={changeHandler}
+                            value={curEvent.start} required></lightning-input>
+                        <lightning-input label="End Date" name="end" type="datetime" timezone="GMT" onchange={changeHandler}
+                            value={curEvent.end} required></lightning-input>
                     </div>
 
                     <footer class="slds-modal__footer">

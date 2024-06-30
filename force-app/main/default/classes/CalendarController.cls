@@ -91,7 +91,8 @@ public with sharing class CalendarController {
         // ISO 8601 format: 2024-06-30T10:00:00.000Z
         String formattedStr = datetimeStr.replace('T', ' ').replace('Z', '');
         try {
-            return Datetime.valueOfGmt(formattedStr);
+            // return Datetime.valueOfGmt(formattedStr);
+            return Datetime.valueOf(formattedStr);
         } catch (Exception e) {
             System.debug('Error parsing datetime: ' + e.getMessage());
             return null;

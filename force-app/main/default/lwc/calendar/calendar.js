@@ -69,6 +69,9 @@ export default class FullCalendarJs extends LightningElement {
         const { data, error } = value;
 
         if (data) {
+            
+            this.events = [];
+
             // format as fullcalendar event object
             this.events = data.map(event => {
                 return {
@@ -82,6 +85,13 @@ export default class FullCalendarJs extends LightningElement {
             // render the calendar if data is ready
             if (!this.eventsRendered) {
                 this.renderCalendar();
+                this.eventsRendered = true;
+
+            } else {
+                // https://fullcalendar.io/docs/v3/renderEvents
+                const ele = this.template.querySelector("div.fullcalendarjs");
+                $(ele).fullCalendar('removeEvents');
+                $(ele).fullCalendar('renderEvents', this.events, true);
             }
 
             console.log('Finish fetching!');
@@ -143,8 +153,6 @@ export default class FullCalendarJs extends LightningElement {
             .catch(error => {
                 console.error('Error occured on FullCalendarJS', error);
             })
-        
-        console.log('this.calendarLoaded in renderedCallback: ', this.calendarLoaded);
     }
 
     /**
@@ -197,13 +205,14 @@ export default class FullCalendarJs extends LightningElement {
                 self.editEventClickHandler(calEvent);
             }
         });
+        this.eventsRendered = true;
     }
 
     // to open the form with predefined fields
-    openActivityForm(stDate, edDate) {        
+    openActivityForm(stDate, edDate) {
         let localStartDate = new Date(new Date(stDate) - timezoneOffset);
         let localEndDate = new Date(new Date(edDate) - timezoneOffset);
-        
+
         this.curEvent = {
             start: localStartDate.toISOString(),
             end: localEndDate.toISOString()
@@ -216,17 +225,15 @@ export default class FullCalendarJs extends LightningElement {
      * @param {*} event 
      */
     saveEvent() {
-        // let events = this.events;
         this.openSpinner = true;
 
-        // get all the field values - as of now they all are mandatory to create a standard event
+        // get all the field values
         this.template.querySelectorAll('lightning-input').forEach(ele => {
             if (ele.name === 'title') {
                 this.title = ele.value;
             }
             if (ele.name === 'start') {
                 this.startDate = new Date(ele.value);
-                console.log('this.startDate: ', JSON.stringify(this.startDate));
             }
             if (ele.name === 'end') {
                 this.endDate = new Date(ele.value);
@@ -283,9 +290,9 @@ export default class FullCalendarJs extends LightningElement {
     */
     addEventHandler() {
         this.openModal = true;
+        this.title = null;
         this.startDate = null;
         this.endDate = null;
-        this.title = null;
     }
 
     /**
@@ -353,13 +360,17 @@ export default class FullCalendarJs extends LightningElement {
     handleTimeOffset(eventRecord) {
         let localStartDate = new Date(new Date(eventRecord.start) - timezoneOffset);
         let localEndDate = new Date(new Date(eventRecord.end) - timezoneOffset);
-        
+
         this.curEvent = {
             id: eventRecord.id,
             title: eventRecord.title,
             start: localStartDate.toISOString(),
             end: localEndDate.toISOString()
         }
+
+        this.title = eventRecord.title;
+        this.startDate = localStartDate;
+        this.endDate = localEndDate;
         this.openModal = true;
     }
 
@@ -367,47 +378,48 @@ export default class FullCalendarJs extends LightningElement {
     * @description: edit the event with id
     * @documentation: https://fullcalendar.io/docs/v3/updateEvent
     */
-    editEvent(eventId) {
+    editEvent() {
         this.openSpinner = true;
+
+        // convert time zone for displaying on calendar
+        let utcStartDate = new Date(this.startDate.getTime() + timezoneOffset).toISOString();
+        let utcEndDate = new Date(this.endDate.getTime() + timezoneOffset).toISOString();
 
         updateEvent({ 'eventId': this.selectedRecordId, 'event': JSON.stringify(this.curEvent) })
             .then((result) => {
                 const ele = this.template.querySelector("div.fullcalendarjs");
 
-                // find the event to update
-                // documentation: https://fullcalendar.io/docs/v3/clientEvents
+                // find the event to update: https://fullcalendar.io/docs/v3/clientEvents
                 let calendarEvent = $(ele).fullCalendar('clientEvents', this.curEvent.id)[0];
 
+                calendarEvent.id = this.curEvent.id;
+                calendarEvent.title = this.curEvent.title;
+                calendarEvent.start = utcStartDate;
+                calendarEvent.end = utcEndDate;
+
                 // update the event properties
-                if (calendarEvent) {
-                    calendarEvent.id = this.curEvent.id;
-                    calendarEvent.title = this.curEvent.title;
-                    calendarEvent.start = this.curEvent.start;
-                    calendarEvent.end = this.curEvent.end;
+                // this.curEvent.id = this.updateEvent.id;
+                // this.curEvent.title = this.updateEvent.title;
+                // this.curEvent.start = utcStartDate;
+                // this.curEvent.end = utcEndDate;
 
-                    // update the event in the calendar
-                    $(ele).fullCalendar('updateEvent', calendarEvent);
+                // update the event in the calendar
+                $(ele).fullCalendar('updateEvent', calendarEvent);
 
-                    // $(ele).fullCalendar('renderEvent', calendarEvent);
-                    // console.log('render event: ', JSON.stringify(calendarEvent));
-                }
-
-                // Update the local properties
-                this.title = this.curEvent.title;
-                this.startDate = this.curEvent.start;
-                this.endDate = this.curEvent.end;
+                // renderEvent is a fullcalendar method to add the event to calendar on UI
+                // documentation: https://fullcalendar.io/docs/v3/renderEvent
+                // $(ele).fullCalendar('renderEvent', calendarEvent, true);
 
                 // reset selected record ID and close modal
                 this.selectedRecordId = null;
                 this.openModal = false;
                 this.curEvent = DEFAULT_EVENT_FORM;
+                this.title = null;
+                this.startDate = null;
+                this.endDate = null;
 
-                // show success toast
                 this.showToast('Your event is updated!', 'success');
-
                 this.openSpinner = false;
-
-                // refresh the grid
                 this.refresh();
             })
             .catch(error => {
@@ -433,7 +445,7 @@ export default class FullCalendarJs extends LightningElement {
     handleSave(event) {
         event.preventDefault();
         if (this.selectedRecordId) {
-            this.editEvent(this.selectedRecordId);
+            this.editEvent();
         } else {
             this.saveEvent();
         }
@@ -446,7 +458,7 @@ export default class FullCalendarJs extends LightningElement {
     changeHandler(event) {
         const { name, value } = event.target;
         this.curEvent = { ...this.curEvent, [name]: value };
-        console.log('this.curEvent id in changeHandler: ', this.curEvent.id);
+        console.log('this.curEvent: ', JSON.stringify(this.curEvent));
     }
 
     /**

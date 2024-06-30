@@ -14,7 +14,7 @@ const DEFAULT_EVENT_FORM = {
     end: ""
 }
 
-const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+const timezoneOffset = (new Date()).getTimezoneOffset() * 60000;
 
 /**
  * FullCalendarJs
@@ -201,8 +201,8 @@ export default class FullCalendarJs extends LightningElement {
 
     // to open the form with predefined fields
     openActivityForm(stDate, edDate) {        
-        let localStartDate = new Date(new Date(stDate) - tzoffset);
-        let localEndDate = new Date(new Date(edDate) - tzoffset);
+        let localStartDate = new Date(new Date(stDate) - timezoneOffset);
+        let localEndDate = new Date(new Date(edDate) - timezoneOffset);
         
         this.curEvent = {
             start: localStartDate.toISOString(),
@@ -216,7 +216,7 @@ export default class FullCalendarJs extends LightningElement {
      * @param {*} event 
      */
     saveEvent() {
-        let events = this.events;
+        // let events = this.events;
         this.openSpinner = true;
 
         // get all the field values - as of now they all are mandatory to create a standard event
@@ -233,35 +233,39 @@ export default class FullCalendarJs extends LightningElement {
             }
         });
 
-        // getTimezoneOffset() returns the difference in minutes
-        let utcStartDate = new Date(this.startDate.getTime() + (this.startDate.getTimezoneOffset() * 60000));
-        let utcEndDate = new Date(this.endDate.getTime() + (this.endDate.getTimezoneOffset() * 60000));
-        console.log('utcStartDate: ', utcStartDate);
+        // convert time zone for displaying on calendar
+        let utcStartDate = new Date(this.startDate.getTime() + timezoneOffset);
+        let utcEndDate = new Date(this.endDate.getTime() + timezoneOffset);
+        let newUtcTimeEvent = {
+            title: this.title,
+            start: utcStartDate.toISOString(),
+            end: utcEndDate.toISOString()
+        };
 
-        // format as per fullcalendar event object to create and render
-        let newevent = {
+        // for saving back to server
+        let newLocalTimeEvent = {
             title: this.title,
             start: this.startDate,
             end: this.endDate
-        };
+        }
+
+        console.log('newUtcTimeEvent.start: ', JSON.stringify(newUtcTimeEvent.start));
+        console.log('newLocalTimeEvent.start: ', JSON.stringify(newLocalTimeEvent.start));
 
         this.openModal = false;
 
-        // server call to create the event
-        createEvent({ 'event': JSON.stringify(newevent) })
+        createEvent({ 'event': JSON.stringify(newLocalTimeEvent) })
             .then(result => {
                 const ele = this.template.querySelector("div.fullcalendarjs");
 
-                // to populate the event on fullcalendar object
-                // id should be unique and useful to remove the event from UI - calendar
-                newevent.id = result;
+                newLocalTimeEvent.id = result;
 
                 // renderEvent is a fullcalendar method to add the event to calendar on UI
                 // documentation: https://fullcalendar.io/docs/v3/renderEvent
-                $(ele).fullCalendar('renderEvent', newevent, true);
+                $(ele).fullCalendar('renderEvent', newUtcTimeEvent, true);
 
                 // to display on UI with id from server
-                this.events.push(newevent);
+                this.events.push(newLocalTimeEvent);
 
                 this.openSpinner = false;
                 this.showToast('Your event is created!', 'success');
@@ -347,8 +351,8 @@ export default class FullCalendarJs extends LightningElement {
     }
 
     handleTimeOffset(eventRecord) {
-        let localStartDate = new Date(new Date(eventRecord.start) - tzoffset);
-        let localEndDate = new Date(new Date(eventRecord.end) - tzoffset);
+        let localStartDate = new Date(new Date(eventRecord.start) - timezoneOffset);
+        let localEndDate = new Date(new Date(eventRecord.end) - timezoneOffset);
         
         this.curEvent = {
             id: eventRecord.id,

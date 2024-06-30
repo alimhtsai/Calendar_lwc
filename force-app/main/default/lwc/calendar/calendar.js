@@ -14,24 +14,24 @@ const DEFAULT_EVENT_FORM = {
     end: ""
 }
 
+const tzoffset = (new Date()).getTimezoneOffset() * 60000;
+
 /**
  * FullCalendarJs
  * @description Full Calendar JS - Lightning Web Components
  */
 export default class FullCalendarJs extends LightningElement {
 
-    // to avoid the recursion from renderedcallback
-    fullCalendarJsInitialised = false;
-    calendarLoaded = false;
-
     // fields to store the event data
+    curEvent = DEFAULT_EVENT_FORM;
     title;
     startDate;
     endDate;
-    curEvent = DEFAULT_EVENT_FORM;
 
     selectedRecordId; // selected event id
 
+    fullCalendarJsInitialised = false; // to avoid the recursion from renderedcallback
+    calendarLoaded = false; // check whether calendar is loaded completely
     eventsRendered = false; // to render initial events only once
     openSpinner = false; // to open the spinner in waiting screens
     openModal = false; // to open form
@@ -39,8 +39,7 @@ export default class FullCalendarJs extends LightningElement {
     @track
     events = []; // all calendar events are stored in this field
 
-    // to store the orignal wire object to use in refreshApex method
-    eventOriginalData = [];
+    eventOriginalData = []; // to store the orignal wire object to use in refreshApex method
 
     /**
      * @description avoid race condition
@@ -58,12 +57,13 @@ export default class FullCalendarJs extends LightningElement {
         this.initialiseFullCalendarJs();
     }
 
-    // Get data from server
+    /**
+     * @description fetch data from server
+     */
     @wire(fetchEvents)
     eventList(value) {
 
         console.log('start fecthing...');
-        console.log('this.calendarLoaded: ', this.calendarLoaded);
 
         this.eventOriginalData = value; // to use in refresh cache
         const { data, error } = value;
@@ -78,8 +78,6 @@ export default class FullCalendarJs extends LightningElement {
                     end: event.EndDateTime__c
                 };
             });
-
-            // console.log('this.events: ', JSON.parse(JSON.stringify(this.events)));
 
             // render the calendar if data is ready
             if (!this.eventsRendered) {
@@ -147,7 +145,6 @@ export default class FullCalendarJs extends LightningElement {
             })
         
         console.log('this.calendarLoaded in renderedCallback: ', this.calendarLoaded);
-        // console.log('this.events in renderedCallback: ', JSON.parse(JSON.stringify(this.events)));
     }
 
     /**
@@ -176,25 +173,21 @@ export default class FullCalendarJs extends LightningElement {
             },
             navLinks: true,
             defaultDate: new Date(), // default day is today
-            navLinks: true, // can click day/week names to navigate views
+            navLinks: true,
             editable: true,
-            selectable: true, // to select the period of time
+            selectable: true,
             dragScroll: false,
             weekNumbers: true,
 
-            // ensure FullCalendar uses the local timezone
-            // https://fullcalendar.io/docs/v3/timezone
+            // ensure FullCalendar uses the local timezone: https://fullcalendar.io/docs/v3/timezone
             timezone: 'local',
 
-            // to select the time period : https://fullcalendar.io/docs/v3/select-method
+            // to select the time period: https://fullcalendar.io/docs/v3/select-method
             select: function (startDate, endDate) {
-                // Convert the dates to the local timezone
-                let stDate = startDate.clone().local();
-                let edDate = endDate.clone().local();
-                self.openActivityForm(stDate, edDate);
+                self.openActivityForm(startDate, endDate);
             },
 
-            eventLimit: true, // allow "more" link when too many events
+            eventLimit: true,
             events: this.events, // all the events that are to be rendered - can be a duplicate statement here
             timeFormat: 'h:mmt',
 
@@ -207,20 +200,15 @@ export default class FullCalendarJs extends LightningElement {
     }
 
     // to open the form with predefined fields
-    openActivityForm(stDate, edDate) {
-        let tzoffset = (new Date()).getTimezoneOffset() * 60000;
-        
-        let startDate = new Date(stDate);
-        let endDate = new Date(edDate);
-        let localStartDate = new Date(startDate - tzoffset);
-        let localEndDate = new Date(endDate - tzoffset);
+    openActivityForm(stDate, edDate) {        
+        let localStartDate = new Date(new Date(stDate) - tzoffset);
+        let localEndDate = new Date(new Date(edDate) - tzoffset);
         
         this.curEvent = {
             start: localStartDate.toISOString(),
             end: localEndDate.toISOString()
         }
         this.openModal = true;
-        console.log('this.curEvent.start: ', JSON.stringify(this.curEvent.start));
     }
 
     /**
@@ -253,8 +241,6 @@ export default class FullCalendarJs extends LightningElement {
         // format as per fullcalendar event object to create and render
         let newevent = {
             title: this.title,
-            // start: this.startDate.toISOString(),
-            // end: this.endDate.toISOString()
             start: this.startDate,
             end: this.endDate
         };
@@ -299,7 +285,7 @@ export default class FullCalendarJs extends LightningElement {
     }
 
     /**
-     * @description: handle removal event
+     * @description handle removal event
      */
     removeEventHandler(event) {
         this.selectedRecordId = event.target.dataset.recordid;
@@ -307,6 +293,9 @@ export default class FullCalendarJs extends LightningElement {
         this.handleConfirm();
     }
 
+    /**
+     * @description confirm of a removal event
+     */
     async handleConfirm() {
         const result = await LightningConfirm.open({
             message: 'Are you sure you want to delete this event?',
@@ -358,12 +347,8 @@ export default class FullCalendarJs extends LightningElement {
     }
 
     handleTimeOffset(eventRecord) {
-        let tzoffset = (new Date()).getTimezoneOffset() * 60000;
-
-        let startDate = new Date(eventRecord.start);
-        let endDate = new Date(eventRecord.end);
-        let localStartDate = new Date(startDate - tzoffset);
-        let localEndDate = new Date(endDate - tzoffset);
+        let localStartDate = new Date(new Date(eventRecord.start) - tzoffset);
+        let localEndDate = new Date(new Date(eventRecord.end) - tzoffset);
         
         this.curEvent = {
             id: eventRecord.id,
@@ -483,10 +468,4 @@ export default class FullCalendarJs extends LightningElement {
     get ModalName() {
         return this.selectedRecordId ? "Update Event" : "Add Event";
     }
-
-    // // Helper method to convert UTC datetime to local datetime
-    // convertToLocalTime(utcDatetime) {
-    //     let localDatetime = new Date(utcDatetime);
-    //     return localDatetime.toLocaleString();
-    // }
 }

@@ -11,7 +11,8 @@ import updateEvent from '@salesforce/apex/CalendarController.updateEvent';
 const DEFAULT_EVENT_FORM = {
     title: "",
     start: "",
-    end: ""
+    end: "",
+    hours: 0
 }
 
 const timezoneOffset = (new Date()).getTimezoneOffset() * 60000;
@@ -27,6 +28,9 @@ export default class FullCalendarJs extends LightningElement {
     title;
     startDate;
     endDate;
+
+    @track
+    hours;
 
     selectedRecordId; // selected event id
 
@@ -78,7 +82,8 @@ export default class FullCalendarJs extends LightningElement {
                     id: event.Id,
                     title: event.Name,
                     start: event.StartDateTime__c,
-                    end: event.EndDateTime__c
+                    end: event.EndDateTime__c,
+                    hours: event.Hours__c
                 };
             });
 
@@ -177,7 +182,7 @@ export default class FullCalendarJs extends LightningElement {
             header: {
                 left: 'prev, next today',
                 center: 'title',
-                right: 'month, agendaWeek, basicDay'
+                right: 'month, agendaWeek, agendaDay'
             },
             navLinks: true,
             defaultDate: new Date(), // default day is today
@@ -228,10 +233,7 @@ export default class FullCalendarJs extends LightningElement {
         this.openSpinner = true;
 
         // get all the field values
-        this.template.querySelectorAll('lightning-input').forEach(ele => {
-            if (ele.name === 'title') {
-                this.title = ele.value;
-            }
+        this.template.querySelectorAll('lightning-input').forEach(ele => {           
             if (ele.name === 'start') {
                 this.startDate = new Date(ele.value);
             }
@@ -243,21 +245,30 @@ export default class FullCalendarJs extends LightningElement {
         // convert time zone for displaying on calendar
         let utcStartDate = new Date(this.startDate.getTime() + timezoneOffset);
         let utcEndDate = new Date(this.endDate.getTime() + timezoneOffset);
+        let diffInHours = this.getHoursBetweenDates(this.startDate, this.endDate);
+
+        // create a title based on the start date
+        let dateTitle = new Date(utcStartDate).toISOString().split('T')[0];
+
+        console.log('utcStartDate: ', JSON.stringify(utcStartDate));
+
         let newUtcTimeEvent = {
-            title: this.title,
+            title: dateTitle,
             start: utcStartDate.toISOString(),
-            end: utcEndDate.toISOString()
+            end: utcEndDate.toISOString(),
+            hours: diffInHours
         };
 
         // for saving back to server
         let newLocalTimeEvent = {
-            title: this.title,
+            title: dateTitle,
             start: this.startDate,
-            end: this.endDate
+            end: this.endDate,
+            hours: diffInHours
         }
 
-        console.log('newUtcTimeEvent.start: ', JSON.stringify(newUtcTimeEvent.start));
-        console.log('newLocalTimeEvent.start: ', JSON.stringify(newLocalTimeEvent.start));
+        console.log('newUtcTimeEvent.title: ', JSON.stringify(newUtcTimeEvent.title));
+        console.log('newUtcTimeEvent.hours: ', JSON.stringify(newUtcTimeEvent.hours));
 
         this.openModal = false;
 
@@ -293,6 +304,7 @@ export default class FullCalendarJs extends LightningElement {
         this.title = null;
         this.startDate = null;
         this.endDate = null;
+        this.hours = 0;
     }
 
     /**
@@ -365,12 +377,14 @@ export default class FullCalendarJs extends LightningElement {
             id: eventRecord.id,
             title: eventRecord.title,
             start: localStartDate.toISOString(),
-            end: localEndDate.toISOString()
+            end: localEndDate.toISOString(),
+            hours: this.getHoursBetweenDates(localStartDate, localEndDate)
         }
 
         this.title = eventRecord.title;
         this.startDate = localStartDate;
         this.endDate = localEndDate;
+        this.hours = this.getHoursBetweenDates(localStartDate, localEndDate);
         this.openModal = true;
     }
 
@@ -382,8 +396,8 @@ export default class FullCalendarJs extends LightningElement {
         this.openSpinner = true;
 
         // convert time zone for displaying on calendar
-        let utcStartDate = new Date(this.startDate.getTime() + timezoneOffset).toISOString();
-        let utcEndDate = new Date(this.endDate.getTime() + timezoneOffset).toISOString();
+        let utcStartDate = new Date(this.startDate.getTime() + timezoneOffset);
+        let utcEndDate = new Date(this.endDate.getTime() + timezoneOffset);
 
         updateEvent({ 'eventId': this.selectedRecordId, 'event': JSON.stringify(this.curEvent) })
             .then((result) => {
@@ -393,22 +407,14 @@ export default class FullCalendarJs extends LightningElement {
                 let calendarEvent = $(ele).fullCalendar('clientEvents', this.curEvent.id)[0];
 
                 calendarEvent.id = this.curEvent.id;
-                calendarEvent.title = this.curEvent.title;
-                calendarEvent.start = utcStartDate;
-                calendarEvent.end = utcEndDate;
+                calendarEvent.start = utcStartDate.toISOString();
+                calendarEvent.end = utcEndDate.toISOString();
+                calendarEvent.hours = this.getHoursBetweenDates(utcStartDate, utcEndDate);
 
-                // update the event properties
-                // this.curEvent.id = this.updateEvent.id;
-                // this.curEvent.title = this.updateEvent.title;
-                // this.curEvent.start = utcStartDate;
-                // this.curEvent.end = utcEndDate;
+                console.log('calendarEvent.hours: ', calendarEvent.hours);
 
                 // update the event in the calendar
                 $(ele).fullCalendar('updateEvent', calendarEvent);
-
-                // renderEvent is a fullcalendar method to add the event to calendar on UI
-                // documentation: https://fullcalendar.io/docs/v3/renderEvent
-                // $(ele).fullCalendar('renderEvent', calendarEvent, true);
 
                 // reset selected record ID and close modal
                 this.selectedRecordId = null;
@@ -417,6 +423,7 @@ export default class FullCalendarJs extends LightningElement {
                 this.title = null;
                 this.startDate = null;
                 this.endDate = null;
+                this.hours = 0;
 
                 this.showToast('Your event is updated!', 'success');
                 this.openSpinner = false;
@@ -458,6 +465,7 @@ export default class FullCalendarJs extends LightningElement {
     changeHandler(event) {
         const { name, value } = event.target;
         this.curEvent = { ...this.curEvent, [name]: value };
+        this.curEvent.hours = this.getHoursBetweenDates(new Date(this.curEvent.start), new Date(this.curEvent.end));
         console.log('this.curEvent: ', JSON.stringify(this.curEvent));
     }
 
@@ -483,5 +491,15 @@ export default class FullCalendarJs extends LightningElement {
      */
     get ModalName() {
         return this.selectedRecordId ? "Update Event" : "Add Event";
+    }
+
+    getHoursBetweenDates(start, end) {
+        // Get the difference in milliseconds
+        const diffInMs = Math.abs(end.getTime() - start.getTime());
+    
+        // Convert milliseconds to hours
+        const diffInHours = diffInMs / (1000 * 60 * 60);
+
+        return diffInHours;
     }
 }

@@ -2,7 +2,7 @@ public with sharing class CalendarController {
 
     @AuraEnabled(cacheable=true)
     public static List<MyCalendar__c> fetchEvents() {
-        return [SELECT Id, Name, StartDateTime__c, EndDateTime__c 
+        return [SELECT Id, Name, StartDateTime__c, EndDateTime__c, Hours__c 
                 FROM MyCalendar__c 
                 ORDER BY CreatedDate DESC
                 LIMIT 100];
@@ -29,6 +29,7 @@ public with sharing class CalendarController {
 
         newEvent.StartDateTime__c = startDatetime;
         newEvent.EndDateTime__c = endDatetime;
+        newEvent.Hours__c = getHoursBetweenDates(startDatetime, endDatetime);
 
         try {
             insert newEvent;
@@ -60,7 +61,7 @@ public with sharing class CalendarController {
             if (!String.isBlank(eventId)) {
                 MyCalendar__c updateEvent = [
                     SELECT 
-                    Id, Name, StartDateTime__c, EndDateTime__c 
+                    Id, Name, StartDateTime__c, EndDateTime__c, Hours__c 
                     FROM MyCalendar__c
                     WHERE Id = :eventId];
                 
@@ -76,6 +77,7 @@ public with sharing class CalendarController {
         
                 updateEvent.StartDateTime__c = startDatetime;
                 updateEvent.EndDateTime__c = endDatetime;
+                updateEvent.Hours__c = getHoursBetweenDates(startDatetime, endDatetime);
 
                 update updateEvent;
                 return true;
@@ -97,5 +99,14 @@ public with sharing class CalendarController {
             System.debug('Error parsing datetime: ' + e.getMessage());
             return null;
         }
+    }
+
+    private static Decimal getHoursBetweenDates(Datetime startTime, Datetime endTime) {
+        // Get the difference in milliseconds
+        Long diffInMs = Math.abs(endTime.getTime() - startTime.getTime());
+    
+        // Convert milliseconds to hours
+        Decimal diffInHours = Decimal.valueOf(diffInMs) / (1000 * 60 * 60);
+        return diffInHours.setScale(2, RoundingMode.HALF_UP);
     }
 }

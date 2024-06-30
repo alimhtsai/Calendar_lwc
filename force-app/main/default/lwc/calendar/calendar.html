@@ -55,6 +55,10 @@
                                 day="numeric" hour="2-digit" minute="2-digit" time-zone-name="short" hour12="true">
                             </lightning-formatted-date-time>
                         </p>
+                        <p class="slds-p-horizontal_small"> Work Hours:
+                            <lightning-formatted-number value={eachevent.hours}
+                                format-style="decimal"></lightning-formatted-number>
+                        </p>
 
                     </lightning-card>
                 </template>
@@ -82,12 +86,14 @@
                     </header>
 
                     <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
-                        <lightning-input label="Title" name="title" type="text" onchange={changeHandler}
-                            value={curEvent.title} required></lightning-input>
-                        <lightning-input label="Start Date" name="start" type="datetime" timezone="GMT" onchange={changeHandler}
-                            value={curEvent.start} required></lightning-input>
-                        <lightning-input label="End Date" name="end" type="datetime" timezone="GMT" onchange={changeHandler}
-                            value={curEvent.end} required></lightning-input>
+                        <lightning-input label="Start Date" name="start" type="datetime" timezone="GMT"
+                            onchange={changeHandler} value={curEvent.start} required></lightning-input>
+                        <lightning-input label="End Date" name="end" type="datetime" timezone="GMT"
+                            onchange={changeHandler} value={curEvent.end} required></lightning-input>
+                        <template if:true={curEvent.hours}>
+                            <lightning-formatted-number label="Work Hour" name="hours" value={curEvent.hours}
+                                maximum-fraction-digits="2"></lightning-formatted-number>
+                        </template>
                     </div>
 
                     <footer class="slds-modal__footer">

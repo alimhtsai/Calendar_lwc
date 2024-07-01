@@ -13,17 +13,14 @@
 
     <div class="slds-grid slds-wrap slds-theme_default">
         <div class="slds-col slds-size_3-of-12">
-            <!-- To display list of events or any parent records  
-                TODO: add drag items in this div to drop on fullcalendar.
-            -->
             <div class=" slds-p-around_medium slds-border_right slds-scrollable_y" style="height:800px">
-                <div class="slds-clearfix">
+                <!-- <div class="slds-clearfix">
                     <div class="slds-float_right">
                         <lightning-button icon-name="utility:add" slot="actions" alternative-text="add" title="Add"
-                            size="small" class="slds-p-around_medium" label="Add Event" onclick={addEventHandler}>
+                            size="small" class="slds-p-around_medium" label="Add Hours" onclick={addEventHandler}>
                         </lightning-button>
                     </div>
-                </div>
+                </div> -->
 
                 <template for:each={events} for:item="eachevent">
                     <lightning-card key={eachevent.id} class="slds-p-left_medium slds-p-right_small">
@@ -65,7 +62,6 @@
             </div>
         </div>
         <div class="slds-col slds-size_9-of-12">
-            <!-- fullcalendar sits in this div -->
             <div id="calendar" class="fullcalendarjs"></div>
         </div>
     </div>
@@ -80,7 +76,7 @@
                     <header class="slds-modal__header">
                         <lightning-button-icon icon-name="utility:close" class="slds-modal__close "
                             alternative-text="Close" title="Close" size="large" variant="bare-inverse"
-                            onclick={handleCancel}>
+                            onclick={cancelEventHandler}>
                         </lightning-button-icon>
                         <h2 id="modal-heading-01" class="slds-modal__title slds-hyphenate">{ModalName}</h2>
                     </header>
@@ -90,19 +86,30 @@
                             onchange={changeHandler} value={curEvent.start} required></lightning-input>
                         <lightning-input label="End Date" name="end" type="datetime" timezone="GMT"
                             onchange={changeHandler} value={curEvent.end} required></lightning-input>
-                        <template if:true={curEvent.hours}>
-                            <lightning-formatted-number label="Work Hour" name="hours" value={curEvent.hours}
-                                maximum-fraction-digits="2"></lightning-formatted-number>
-                        </template>
+                        <!-- <lightning-formatted-number label="Work Hour" name="hours" value={curEvent.hours}
+                            maximum-fraction-digits="2"></lightning-formatted-number> -->
+                        <div class="slds-form-element">
+                            <label class="slds-form-element__label slds-text-title_bold" for="workHours">Work
+                                Hour</label>
+                            <div class="slds-form-element__control">
+                                <lightning-formatted-number class="slds-text-color_error" name="hours"
+                                    value={curEvent.hours} maximum-fraction-digits="2">
+                                </lightning-formatted-number>
+                            </div>
+                        </div>
                     </div>
 
                     <footer class="slds-modal__footer">
-                        <lightning-button-group>
-                            <lightning-button label="Close" title="Close" icon-name="utility:close"
-                                onclick={handleCancel}></lightning-button>
-                            <lightning-button label="Save" title="Save" variant="brand" icon-name="utility:save"
-                                onclick={handleSave}></lightning-button>
-                        </lightning-button-group>
+                        <div class="slds-grid slds-grid_align-spread slds-p-horizontal_small">
+                            <lightning-button label="Delete" title="Delete" icon-name="utility:delete"
+                                variant="destructive" onclick={removeEventHandler}></lightning-button>
+                            <lightning-button-group>
+                                <lightning-button label="Close" title="Close" icon-name="utility:close"
+                                    onclick={cancelEventHandler}></lightning-button>
+                                <lightning-button label="Save" title="Save" variant="brand" icon-name="utility:save"
+                                    onclick={saveEventHandler}></lightning-button>
+                            </lightning-button-group>
+                        </div>
                     </footer>
 
                 </div>

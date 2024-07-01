@@ -10,33 +10,29 @@ public with sharing class CalendarController {
     
     @AuraEnabled
     public static Id createEvent(String event) {
-
-        if (String.isBlank(event)) {
-            return null;
-        }
-
-        Map<String, Object> eventMap = (Map<String, Object>) JSON.deserializeUntyped(event);
-        
-        MyCalendar__c newEvent = new MyCalendar__c();
-
-        newEvent.Name = (String) eventMap.get('title');
-
-        // Convert start and end dates to Datetime format
-        String startdateStr = (String) eventMap.get('start');
-        String enddateStr = (String) eventMap.get('end');
-        Datetime startDatetime = parseIsoDatetime(startdateStr);
-        Datetime endDatetime = parseIsoDatetime(enddateStr);
-
-        newEvent.StartDateTime__c = startDatetime;
-        newEvent.EndDateTime__c = endDatetime;
-        newEvent.Hours__c = getHoursBetweenDates(startDatetime, endDatetime);
-
         try {
-            insert newEvent;
-            return newEvent.Id;
+            if (!String.isBlank(event)) {
+                Map<String, Object> eventMap = (Map<String, Object>) JSON.deserializeUntyped(event);
+            
+                MyCalendar__c newEvent = new MyCalendar__c();
+                
+                String startdateStr = (String) eventMap.get('start');
+                String enddateStr = (String) eventMap.get('end');
+                Datetime startDatetime = parseIsoDatetime(startdateStr);
+                Datetime endDatetime = parseIsoDatetime(enddateStr);
+        
+                newEvent.Name = (String) eventMap.get('title');
+                newEvent.StartDateTime__c = startDatetime;
+                newEvent.EndDateTime__c = endDatetime;
+                newEvent.Hours__c = getHoursBetweenDates(startDatetime, endDatetime);
+        
+                insert newEvent;
+                return newEvent.Id;
+            }
+            return null;
         } catch (Exception e) {
             System.debug('Error inserting event: ' + e.getMessage());
-            return null;
+            throw new AuraHandledException(e.getMessage());
         }
     }
 
@@ -51,6 +47,7 @@ public with sharing class CalendarController {
             }
             return false;
         } catch (Exception e) {
+            System.debug('Error deleting event: ' + e.getMessage());
             throw new AuraHandledException(e.getMessage());
         }
     }
@@ -90,7 +87,6 @@ public with sharing class CalendarController {
     }
 
     private static Datetime parseIsoDatetime(String datetimeStr) {
-        // ISO 8601 format: 2024-06-30T10:00:00.000Z
         String formattedStr = datetimeStr.replace('T', ' ').replace('Z', '');
         try {
             // return Datetime.valueOfGmt(formattedStr);
@@ -102,11 +98,12 @@ public with sharing class CalendarController {
     }
 
     private static Decimal getHoursBetweenDates(Datetime startTime, Datetime endTime) {
-        // Get the difference in milliseconds
+        // get the difference in milliseconds
         Long diffInMs = Math.abs(endTime.getTime() - startTime.getTime());
     
-        // Convert milliseconds to hours
-        Decimal diffInHours = Decimal.valueOf(diffInMs) / (1000 * 60 * 60);
+        // convert milliseconds to hours
+        Integer millisecondsPerHour = 1000 * 60 * 60;
+        Decimal diffInHours = Decimal.valueOf(diffInMs) / millisecondsPerHour;
         return diffInHours.setScale(2, RoundingMode.HALF_UP);
     }
 }

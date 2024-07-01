@@ -8,42 +8,37 @@ import fetchEvents from '@salesforce/apex/CalendarController.fetchEvents';
 import deleteEvent from '@salesforce/apex/CalendarController.deleteEvent';
 import updateEvent from '@salesforce/apex/CalendarController.updateEvent';
 
-const DEFAULT_EVENT_FORM = {
+const DEFAULT_FORM = {
     title: "",
     start: "",
     end: "",
     hours: 0
-}
-
+};
+const DEFAULT_LOCAL_TIME = {
+    start: new Date(),
+    end: new Date()
+};
+const DEFAULT_UTC_TIME = {
+    start: new Date(),
+    end: new Date()
+};
 const timezoneOffset = (new Date()).getTimezoneOffset() * 60000;
 
-/**
- * FullCalendarJs
- * @description Full Calendar JS - Lightning Web Components
- */
 export default class FullCalendarJs extends LightningElement {
 
-    // fields to store the event data
-    curEvent = DEFAULT_EVENT_FORM;
-    title;
-    startDate;
-    endDate;
+    @track curEvent = DEFAULT_FORM;
+    @track localTime = DEFAULT_LOCAL_TIME;
+    @track utcTime = DEFAULT_UTC_TIME;
 
-    @track
-    hours;
-
-    selectedRecordId; // selected event id
-
-    fullCalendarJsInitialised = false; // to avoid the recursion from renderedcallback
-    calendarLoaded = false; // check whether calendar is loaded completely
-    eventsRendered = false; // to render initial events only once
-    openSpinner = false; // to open the spinner in waiting screens
-    openModal = false; // to open form
-
-    @track
-    events = []; // all calendar events are stored in this field
-
+    @track events = []; // all calendar events are stored in this field
     eventOriginalData = []; // to store the orignal wire object to use in refreshApex method
+
+    selectedId;
+    fullCalendarJsInitialised = false;
+    calendarLoaded = false
+    eventsRendered = false;
+    openSpinner = false;
+    openModal = false
 
     /**
      * @description avoid race condition
@@ -61,9 +56,6 @@ export default class FullCalendarJs extends LightningElement {
         this.initialiseFullCalendarJs();
     }
 
-    /**
-     * @description fetch data from server
-     */
     @wire(fetchEvents)
     eventList(value) {
 
@@ -91,7 +83,6 @@ export default class FullCalendarJs extends LightningElement {
             if (!this.eventsRendered) {
                 this.renderCalendar();
                 this.eventsRendered = true;
-
             } else {
                 // https://fullcalendar.io/docs/v3/renderEvents
                 const ele = this.template.querySelector("div.fullcalendarjs");
@@ -101,27 +92,15 @@ export default class FullCalendarJs extends LightningElement {
 
             console.log('Finish fetching!');
 
-            // load only on first wire call
-            // if events are not rendered, try to remove this 'if' condition and add directly 
-            // documentation: https://fullcalendar.io/docs/v3/renderEvents
-
-            // // add events to calendar
-            // if (!this.eventsRendered || !this.calendarLoaded) {
-            //     this.renderCalendar();
-            //     console.log('this.eventsRendered before: ', this.eventsRendered);
-            // } else {
-            //     const ele = this.template.querySelector("div.fullcalendarjs");
-            //     $(ele).fullCalendar('renderEvents', JSON.stringify(this.events), true);
-            //     this.eventsRendered = true;
-            //     console.log('this.eventsRendered after: ', this.eventsRendered);
-            // }
-
         } else if (error) {
             this.events = [];
-            // this.error = 'No events are found';
             console.error('Error occured in fetching', error)
             this.showToast(error.message.body, 'error');
         }
+    }
+
+    connectedCallback() {
+        this.renderedCallback();
     }
 
     /**
@@ -130,7 +109,6 @@ export default class FullCalendarJs extends LightningElement {
      */
     renderedCallback() {
 
-        // performs this operation only on first render
         if (this.fullCalendarJsInitialised) {
             return;
         }
@@ -167,14 +145,8 @@ export default class FullCalendarJs extends LightningElement {
      */
     initialiseFullCalendarJs() {
 
-        // // Ensure jQuery is loaded
-        // if (typeof $ !== 'function') {
-        //     console.error('jQuery is not loaded');
-        //     return;
-        // }
-
         const ele = this.template.querySelector('div.fullcalendarjs');
-        const modal = this.template.querySelector('div.modalclass');
+        // const modal = this.template.querySelector('div.modalclass');
 
         var self = this;
 
@@ -185,11 +157,10 @@ export default class FullCalendarJs extends LightningElement {
                 right: 'month, agendaWeek, agendaDay'
             },
             navLinks: true,
-            defaultDate: new Date(), // default day is today
+            defaultDate: new Date(),
             navLinks: true,
             editable: true,
             selectable: true,
-            dragScroll: false,
             weekNumbers: true,
 
             // ensure FullCalendar uses the local timezone: https://fullcalendar.io/docs/v3/timezone
@@ -197,89 +168,81 @@ export default class FullCalendarJs extends LightningElement {
 
             // to select the time period: https://fullcalendar.io/docs/v3/select-method
             select: function (startDate, endDate) {
-                self.openActivityForm(startDate, endDate);
+                self.openForm(startDate, endDate);
             },
 
             eventLimit: true,
-            events: this.events, // all the events that are to be rendered - can be a duplicate statement here
+            events: this.events,
             timeFormat: 'h:mmt',
 
             // https://fullcalendar.io/docs/v3/eventClick
             eventClick: function(calEvent, jsEvent, view) {
                 this.curEvent = calEvent;
                 self.editEventClickHandler(calEvent);
+            },
+            
+            // https://fullcalendar.io/docs/v3/eventDrop
+            eventDrop: function(event, delta, revertFunc) {
+                this.curEvent = event;
+                self.dropEventHandler(event);
+            },
+
+            // https://fullcalendar.io/docs/v3/eventResize
+            eventResize: function(event, delta, revertFunc) {
+                this.curEvent = event;
+                self.resizeEventHandler(event);
+            },
+            
+            // https://fullcalendar.io/docs/v3/eventRender
+            eventRender: function(event, element) {
+                // Remove event title from the rendered element
+                element.find('.fc-title').remove();
             }
         });
-        this.eventsRendered = true;
     }
 
-    // to open the form with predefined fields
-    openActivityForm(stDate, edDate) {
-        let localStartDate = new Date(new Date(stDate) - timezoneOffset);
-        let localEndDate = new Date(new Date(edDate) - timezoneOffset);
-
-        this.curEvent = {
-            start: localStartDate.toISOString(),
-            end: localEndDate.toISOString()
-        }
-        this.openModal = true;
-    }
-
-    /**
-     * @description Save a new event
-     * @param {*} event 
-     */
     saveEvent() {
         this.openSpinner = true;
-
-        // get all the field values
         this.template.querySelectorAll('lightning-input').forEach(ele => {           
             if (ele.name === 'start') {
-                this.startDate = new Date(ele.value);
+                this.curEvent.start = new Date(ele.value).toISOString();
             }
             if (ele.name === 'end') {
-                this.endDate = new Date(ele.value);
+                this.curEvent.end = new Date(ele.value).toISOString();
             }
         });
 
         // convert time zone for displaying on calendar
-        let utcStartDate = new Date(this.startDate.getTime() + timezoneOffset);
-        let utcEndDate = new Date(this.endDate.getTime() + timezoneOffset);
-        let diffInHours = this.getHoursBetweenDates(this.startDate, this.endDate);
-
-        // create a title based on the start date
-        let dateTitle = new Date(utcStartDate).toISOString().split('T')[0];
-
-        console.log('utcStartDate: ', JSON.stringify(utcStartDate));
+        this.convertUtcTime();
+        this.calculateWorkingHours();
+        this.createTitleBasedOnStartDate();
 
         let newUtcTimeEvent = {
-            title: dateTitle,
-            start: utcStartDate.toISOString(),
-            end: utcEndDate.toISOString(),
-            hours: diffInHours
+            title: this.curEvent.title,
+            start: this.utcTime.start.toISOString(),
+            end: this.utcTime.end.toISOString(),
+            hours: this.curEvent.hours
         };
 
         // for saving back to server
         let newLocalTimeEvent = {
-            title: dateTitle,
-            start: this.startDate,
-            end: this.endDate,
-            hours: diffInHours
+            title: this.curEvent.title,
+            start: this.curEvent.start,
+            end: this.curEvent.end,
+            hours: this.curEvent.hours
         }
 
-        console.log('newUtcTimeEvent.title: ', JSON.stringify(newUtcTimeEvent.title));
-        console.log('newUtcTimeEvent.hours: ', JSON.stringify(newUtcTimeEvent.hours));
+        console.log('newUtcTimeEvent.start: ', JSON.stringify(newUtcTimeEvent.start));
+        console.log('newLocalTimeEvent.start: ', JSON.stringify(newLocalTimeEvent.start));
 
         this.openModal = false;
 
         createEvent({ 'event': JSON.stringify(newLocalTimeEvent) })
             .then(result => {
-                const ele = this.template.querySelector("div.fullcalendarjs");
-
                 newLocalTimeEvent.id = result;
 
-                // renderEvent is a fullcalendar method to add the event to calendar on UI
-                // documentation: https://fullcalendar.io/docs/v3/renderEvent
+                // add the new event to calendar on UI: https://fullcalendar.io/docs/v3/renderEvent
+                const ele = this.template.querySelector("div.fullcalendarjs");
                 $(ele).fullCalendar('renderEvent', newUtcTimeEvent, true);
 
                 // to display on UI with id from server
@@ -297,95 +260,30 @@ export default class FullCalendarJs extends LightningElement {
     }
 
     /**
-    *  @description open the modal by nullifying the inputs
-    */
-    addEventHandler() {
-        this.openModal = true;
-        this.title = null;
-        this.startDate = null;
-        this.endDate = null;
-        this.hours = 0;
-    }
-
-    /**
-     * @description handle removal event
-     */
-    removeEventHandler(event) {
-        this.selectedRecordId = event.target.dataset.recordid;
-        console.log('selectedRecordId: ', this.selectedRecordId);
-        this.handleConfirm();
-    }
-
-    /**
-     * @description confirm of a removal event
-     */
-    async handleConfirm() {
-        const result = await LightningConfirm.open({
-            message: 'Are you sure you want to delete this event?',
-            variant: 'headerless',
-            label: 'Delete Confirmation'
-        });
-        if (result) {
-            this.removeEvent();
-        }
-    }
-
-    /**
     * @description: remove the event with id
     * @documentation: https://fullcalendar.io/docs/v3/removeEvents
     */
-    removeEvent(event) {
+    removeEvent() {
         this.openSpinner = true;
-
-        // delete the event from server and then remove from UI
-        deleteEvent({ 'eventId': this.selectedRecordId })
-            .then((result) => {
+        deleteEvent({ 'eventId': this.selectedId })
+            .then(() => {
                 const ele = this.template.querySelector("div.fullcalendarjs");
-                $(ele).fullCalendar('removeEvents', [this.selectedRecordId]);
+                $(ele).fullCalendar('removeEvents', [this.selectedId]);
+                
+                this.selectedId = null;
+                this.openModal = false;
+                this.curEvent = DEFAULT_FORM;
 
                 this.showToast('Your event is deleted!', 'success');
                 this.openSpinner = false;
-                this.selectedRecordId = null;
-
-                // refresh the grid
                 this.refresh();
             })
             .catch(error => {
                 console.error('Error occured on removeEvent', error);
                 this.showToast(error.message.body, 'error');
                 this.openSpinner = false;
+                this.openModal = false;
             });
-    }
-
-    editEventHandler(event) {
-        this.selectedRecordId = event.target.dataset.recordid;
-        const eventRecord = this.events.find(item => item.id === this.selectedRecordId);
-        this.handleTimeOffset(eventRecord);
-    }
-
-    editEventClickHandler(event) {
-        this.selectedRecordId = event.id;
-        const eventRecord = this.events.find(item => item.id === this.selectedRecordId);
-        this.handleTimeOffset(eventRecord);
-    }
-
-    handleTimeOffset(eventRecord) {
-        let localStartDate = new Date(new Date(eventRecord.start) - timezoneOffset);
-        let localEndDate = new Date(new Date(eventRecord.end) - timezoneOffset);
-
-        this.curEvent = {
-            id: eventRecord.id,
-            title: eventRecord.title,
-            start: localStartDate.toISOString(),
-            end: localEndDate.toISOString(),
-            hours: this.getHoursBetweenDates(localStartDate, localEndDate)
-        }
-
-        this.title = eventRecord.title;
-        this.startDate = localStartDate;
-        this.endDate = localEndDate;
-        this.hours = this.getHoursBetweenDates(localStartDate, localEndDate);
-        this.openModal = true;
     }
 
     /**
@@ -394,36 +292,26 @@ export default class FullCalendarJs extends LightningElement {
     */
     editEvent() {
         this.openSpinner = true;
+        this.convertUtcTime();
+        this.calculateWorkingHours();
 
-        // convert time zone for displaying on calendar
-        let utcStartDate = new Date(this.startDate.getTime() + timezoneOffset);
-        let utcEndDate = new Date(this.endDate.getTime() + timezoneOffset);
-
-        updateEvent({ 'eventId': this.selectedRecordId, 'event': JSON.stringify(this.curEvent) })
-            .then((result) => {
+        updateEvent({ 'eventId': this.selectedId, 'event': JSON.stringify(this.curEvent) })
+            .then(() => {
                 const ele = this.template.querySelector("div.fullcalendarjs");
 
                 // find the event to update: https://fullcalendar.io/docs/v3/clientEvents
                 let calendarEvent = $(ele).fullCalendar('clientEvents', this.curEvent.id)[0];
-
                 calendarEvent.id = this.curEvent.id;
-                calendarEvent.start = utcStartDate.toISOString();
-                calendarEvent.end = utcEndDate.toISOString();
-                calendarEvent.hours = this.getHoursBetweenDates(utcStartDate, utcEndDate);
-
-                console.log('calendarEvent.hours: ', calendarEvent.hours);
+                calendarEvent.start = this.utcTime.start.toISOString();
+                calendarEvent.end = this.utcTime.end.toISOString();
+                calendarEvent.hours = this.curEvent.hours;
 
                 // update the event in the calendar
                 $(ele).fullCalendar('updateEvent', calendarEvent);
 
-                // reset selected record ID and close modal
-                this.selectedRecordId = null;
+                this.selectedId = null;
                 this.openModal = false;
-                this.curEvent = DEFAULT_EVENT_FORM;
-                this.title = null;
-                this.startDate = null;
-                this.endDate = null;
-                this.hours = 0;
+                this.curEvent = DEFAULT_FORM;
 
                 this.showToast('Your event is updated!', 'success');
                 this.openSpinner = false;
@@ -436,42 +324,104 @@ export default class FullCalendarJs extends LightningElement {
             })
     }
 
-    /**
-     * @description handle actions when users click the "Cancel" button
-     */
-    handleCancel() {
+    cancelEventHandler() {
         this.openModal = false;
-        this.selectedRecordId = null;
-        this.curEvent = DEFAULT_EVENT_FORM;
+        this.selectedId = null;
+        this.curEvent = DEFAULT_FORM;
     }
 
-    /**
-     * @description handle actions when users click the "Save" button
-     * @param {*} event 
-     */
-    handleSave(event) {
+    saveEventHandler(event) {
         event.preventDefault();
-        if (this.selectedRecordId) {
+        if (this.selectedId) {
             this.editEvent();
         } else {
             this.saveEvent();
         }
     }
 
-    /**
-     * @description handle changes when users modify the form
-     * @param {*} event 
-     */
     changeHandler(event) {
         const { name, value } = event.target;
         this.curEvent = { ...this.curEvent, [name]: value };
-        this.curEvent.hours = this.getHoursBetweenDates(new Date(this.curEvent.start), new Date(this.curEvent.end));
+        this.calculateWorkingHours();
         console.log('this.curEvent: ', JSON.stringify(this.curEvent));
     }
 
-    /**
-     * @description method to show toast events
-     */
+    editEventHandler(event) {
+        this.selectedId = event.target.dataset.recordid;
+        const eventRecord = this.events.find(item => item.id === this.selectedId);
+        this.curEvent.id = eventRecord.id;
+        this.openModal = true;
+        this.handleTimeOffset(eventRecord);
+    }
+
+    editEventClickHandler(event) {
+        this.selectedId = event.id;
+        const eventRecord = this.events.find(item => item.id === this.selectedId);
+        this.curEvent.id = eventRecord.id;
+        this.openModal = true;
+        this.handleTimeOffset(eventRecord);
+    }
+
+    dropEventHandler(event) {
+        this.selectedId = event.id;
+        const eventRecord = this.events.find(item => item.id === this.selectedId);
+        this.curEvent.id = eventRecord.id;
+        this.openModal = true;
+        this.handleTimeOffset(event);
+    }
+
+    resizeEventHandler(event) {
+        this.selectedId = event.id;
+        const eventRecord = this.events.find(item => item.id === this.selectedId);
+        this.curEvent.id = eventRecord.id;
+        this.openModal = true;
+        this.handleTimeOffset(event);
+    }
+
+    handleTimeOffset(event) {
+        this.convertLocalTime(event);
+        this.curEvent.start = this.localTime.start.toISOString();
+        this.curEvent.end = this.localTime.end.toISOString();
+        this.createTitleBasedOnStartDate();
+        this.calculateWorkingHours();
+    }
+
+    addEventHandler() {
+        this.openModal = true;
+        this.curEvent = DEFAULT_FORM;
+        this.localTime = DEFAULT_LOCAL_TIME;
+        this.utcTime = DEFAULT_UTC_TIME;
+    }
+
+    removeEventHandler() {
+        this.selectedId = this.curEvent.id;
+        console.log('selectedId: ', this.selectedId);
+        this.confirmRemoval();
+    }
+
+    async confirmRemoval() {
+        const result = await LightningConfirm.open({
+            message: 'Are you sure you want to delete this event?',
+            variant: 'headerless',
+            label: 'Delete Confirmation'
+        });
+        if (result) {
+            this.removeEvent();
+        }
+    }
+
+    openForm(startDate, endDate) {
+        let event = {
+            start: startDate,
+            end: endDate
+        };
+        this.convertLocalTime(event);
+        this.curEvent.start = this.localTime.start.toISOString();
+        this.curEvent.end = this.localTime.end.toISOString();
+        this.calculateWorkingHours();
+        this.openModal = true;
+    }
+
     showToast(message, variant) {
         const toast = this.template.querySelector('c-notification');
         if (toast) {
@@ -479,27 +429,33 @@ export default class FullCalendarJs extends LightningElement {
         };
     }
 
-    /**
-     * @description refresh the events
-     */
     refresh() {
         return refreshApex(this.eventOriginalData);
     }
 
-    /**
-     * @description decide the current modal name based on whether the selectedRecordId is selected or not
-     */
     get ModalName() {
-        return this.selectedRecordId ? "Update Event" : "Add Event";
+        return this.selectedId ? "Update Event" : "Add Event";
     }
 
-    getHoursBetweenDates(start, end) {
-        // Get the difference in milliseconds
-        const diffInMs = Math.abs(end.getTime() - start.getTime());
-    
-        // Convert milliseconds to hours
-        const diffInHours = diffInMs / (1000 * 60 * 60);
+    calculateWorkingHours() {
+        const startDate = new Date(this.curEvent.start);
+        const endDate = new Date(this.curEvent.end);
+        const millisecondsPerHour = 1000 * 60 * 60;
+        const hours = (endDate - startDate) / millisecondsPerHour;
+        this.curEvent.hours = hours.toFixed(2); // Update the hours with two decimal places
+    }
 
-        return diffInHours;
+    createTitleBasedOnStartDate() {
+        this.curEvent.title = new Date(this.curEvent.start).toISOString().split('T')[0];
+    }
+
+    convertUtcTime() {
+        this.utcTime.start = new Date(new Date(this.curEvent.start).getTime() + timezoneOffset);
+        this.utcTime.end = new Date(new Date(this.curEvent.end).getTime() + timezoneOffset);
+    }
+
+    convertLocalTime(event) {
+        this.localTime.start = new Date(new Date(event.start) - timezoneOffset);
+        this.localTime.end = new Date(new Date(event.end) - timezoneOffset);
     }
 }

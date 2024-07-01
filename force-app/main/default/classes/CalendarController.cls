@@ -81,7 +81,7 @@ public with sharing class CalendarController {
             }
             return false;
         } catch (Exception e) {
-            System.debug('error updating event' + e.getMessage());
+            System.debug('Error updating event' + e.getMessage());
             throw new AuraHandledException(e.getMessage());
         }
     }
@@ -89,7 +89,6 @@ public with sharing class CalendarController {
     private static Datetime parseIsoDatetime(String datetimeStr) {
         String formattedStr = datetimeStr.replace('T', ' ').replace('Z', '');
         try {
-            // return Datetime.valueOfGmt(formattedStr);
             return Datetime.valueOf(formattedStr);
         } catch (Exception e) {
             System.debug('Error parsing datetime: ' + e.getMessage());
@@ -98,10 +97,7 @@ public with sharing class CalendarController {
     }
 
     private static Decimal getHoursBetweenDates(Datetime startTime, Datetime endTime) {
-        // get the difference in milliseconds
         Long diffInMs = Math.abs(endTime.getTime() - startTime.getTime());
-    
-        // convert milliseconds to hours
         Integer millisecondsPerHour = 1000 * 60 * 60;
         Decimal diffInHours = Decimal.valueOf(diffInMs) / millisecondsPerHour;
         return diffInHours.setScale(2, RoundingMode.HALF_UP);

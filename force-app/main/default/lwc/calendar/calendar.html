@@ -6,7 +6,6 @@
 <template>
     <c-notification></c-notification>
 
-    <!-- Spinner to show on waiting screens -->
     <template if:true={openSpinner}>
         <lightning-spinner alternative-text="Loading" size="medium"></lightning-spinner>
     </template>
@@ -34,7 +33,8 @@
                                         name="hours" value={weekGroup.dailyTotalHours} maximum-fraction-digits="2">
                                     </lightning-formatted-number>
                                 </h4>
-                                <!-- <template for:each={titleGroup.events} for:item="event">
+                                <!-- get details of each weekGroup
+                                <template for:each={weekGroup.events} for:item="event">
                                     <p key={event.id}>
                                         {event.hours} hours
                                     </p>
@@ -51,7 +51,6 @@
         </div>
     </div>
 
-    <!-- Open a modal with new event form  -->
     <template if:true={openModal}>
         <div data-modal="custommodal" class="modalclass">
             <section role="dialog" tabindex="-1" aria-labelledby="modal-heading-01" aria-modal="true"

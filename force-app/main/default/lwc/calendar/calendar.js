@@ -24,21 +24,21 @@ const DEFAULT_UTC_TIME = {
     end: new Date()
 };
 const CONFIRM_REMOVAL = {
-    message: 'Are you sure you want to delete this event?',
+    message: 'Are you sure you want to delete this record?',
     variant: 'headerless',
     label: 'Delete Confirmation'
 };
 const TOAST_MESSAGE = {
-    create: 'Your event is created!',
-    update: 'Your event is updated!',
-    delete: 'Your event is deleted!'
+    create: 'Your record is created!',
+    update: 'Your record is updated!',
+    delete: 'Your record is deleted!'
 }; 
 const TOAST_VARIANT = {
     success: 'success',
     error: 'error'
 };
 const TIMEZONE_OFFSET = (new Date()).getTimezoneOffset() * 60000;
-const START_OF_THE_YEAR = new Date(new Date().getFullYear(), 0, 1); // January 1st of the current year
+const START_OF_THE_YEAR = new Date(new Date().getFullYear(), 0, 1);
 const MILLISECONDS_PER_HOUR = 1000 * 60 * 60;
 const MILLISECONDS_PER_YEAR = 1000 * 60 * 60 * 24;
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', ];
@@ -433,7 +433,7 @@ export default class FullCalendarJs extends LightningElement {
     }
 
     get ModalName() {
-        return this.selectedId ? "Update Event" : "Add Event";
+        return this.selectedId ? "Update Hours" : "Add Hours";
     }
 
     calculateWorkingHours() {

@@ -1,8 +1,8 @@
-## Timecard App
+## Time Entry App
 > Lightning Web Components (lwc), Apex, fullCalendar (v3.10.0)
 
 ### Introduction
-* Build a timecard app with Lightning Web Components (lwc) and Apex utilizing fullCalendar library
+* Build a time entry app with Lightning Web Components (lwc) and Apex utilizing fullCalendar library
 * Full calendar documentation: [https://fullcalendar.io/docs/v3](https://fullcalendar.io/docs/v3)
 
 ### Live Demo

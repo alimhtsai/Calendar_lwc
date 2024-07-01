@@ -13,55 +13,34 @@
 
     <div class="slds-grid slds-wrap slds-theme_default">
         <div class="slds-col slds-size_3-of-12">
-            <div class=" slds-p-around_medium slds-border_right slds-scrollable_y" style="height:800px">
-                <!-- <div class="slds-clearfix">
-                    <div class="slds-float_right">
-                        <lightning-button icon-name="utility:add" slot="actions" alternative-text="add" title="Add"
-                            size="small" class="slds-p-around_medium" label="Add Hours" onclick={addEventHandler}>
-                        </lightning-button>
-                    </div>
-                </div> -->
+            <div class="slds-p-around_medium slds-border_right slds-scrollable_y" style="height:800px">
 
-                <!-- <template for:each={sortedEvents} for:item="eachevent">
-                    <lightning-card key={eachevent.id} class="slds-p-left_medium slds-p-right_small">
+                <template for:each={groupedEvents} for:item="weekNumberGroup">
+                    <lightning-card key={weekNumberGroup.weekNumber} class="slds-p-left_medium">
                         <h4 slot="title">
                             <span class="slds-p-right_small">
                                 <lightning-icon icon-name="standard:event" size="small">
                                 </lightning-icon>
                             </span>
-
+                            Week {weekNumberGroup.weekNumber} - Weekly Hours
+                            <lightning-formatted-number class="slds-p-left_x-small slds-text-color_error" name="hours"
+                                value={weekNumberGroup.weeklyTotalHours} maximum-fraction-digits="2">
+                            </lightning-formatted-number>
                         </h4>
-                        
-                        <lightning-button-icon class="button edit-button cursor" icon-name="action:edit" slot="actions"
-                            alternative-text="edit" title="Edit" value={eachevent.id} size="small"
-                            onclick={editEventHandler} data-recordid={eachevent.id}>
-                        </lightning-button-icon>
-
-                        <lightning-button-icon class="button delete-button cursor" icon-name="action:remove"
-                            slot="actions" alternative-text="remove" title="Remove" value={eachevent.id} size="small"
-                            onclick={removeEventHandler} data-recordid={eachevent.id}>
-                        </lightning-button-icon>
-
-                    </lightning-card>
-                </template> -->
-
-                <template for:each={groupedEvents} for:item="group">
-                    <lightning-card key={group.title} class="slds-p-left_medium slds-p-right_small">
-                        <h4 slot="title">{group.title}</h4>
-                        <p class="slds-p-horizontal_small">
-                            <lightning-formatted-text value={group.weekday}></lightning-formatted-text>
-                        </p>
-                        <!-- <template for:each={group.events} for:item="event">
-                            <p key={event.id} class="slds-p-horizontal_small">
-                                Start Date: {event.start}, Weekday: {event.weekday}, Hours: {event.hours}
-                            </p>
-                        </template> -->
-                        <p class="slds-p-horizontal_small">
-                            Total Work Hours: <lightning-formatted-number value={group.totalHours}
-                                format-style="decimal"></lightning-formatted-number>
-                        </p>
+                        <template for:each={weekNumberGroup.weeks} for:item="weekGroup">
+                            <div key={weekGroup.title} class="slds-p-left_medium slds-p-right_medium">
+                                <h4>{weekGroup.title} ({weekGroup.weekday}) Daily Hours {weekGroup.dailyTotalHours}
+                                </h4>
+                                <!-- <template for:each={titleGroup.events} for:item="event">
+                                    <p key={event.id}>
+                                        {event.hours} hours
+                                    </p>
+                                </template> -->
+                            </div>
+                        </template>
                     </lightning-card>
                 </template>
+
             </div>
         </div>
         <div class="slds-col slds-size_9-of-12">

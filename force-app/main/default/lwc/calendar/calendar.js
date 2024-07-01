@@ -66,7 +66,7 @@ export default class FullCalendarJs extends LightningElement {
         const { data, error } = value;
 
         if (data) {
-            
+
             this.events = [];
 
             // format as fullcalendar event object
@@ -177,25 +177,25 @@ export default class FullCalendarJs extends LightningElement {
             timeFormat: 'h:mmt',
 
             // https://fullcalendar.io/docs/v3/eventClick
-            eventClick: function(calEvent, jsEvent, view) {
+            eventClick: function (calEvent, jsEvent, view) {
                 this.curEvent = calEvent;
                 self.editEventClickHandler(calEvent);
             },
-            
+
             // https://fullcalendar.io/docs/v3/eventDrop
-            eventDrop: function(event, delta, revertFunc) {
+            eventDrop: function (event, delta, revertFunc) {
                 this.curEvent = event;
                 self.dropEventHandler(event);
             },
 
             // https://fullcalendar.io/docs/v3/eventResize
-            eventResize: function(event, delta, revertFunc) {
+            eventResize: function (event, delta, revertFunc) {
                 this.curEvent = event;
                 self.resizeEventHandler(event);
             },
-            
+
             // https://fullcalendar.io/docs/v3/eventRender
-            eventRender: function(event, element) {
+            eventRender: function (event, element) {
                 // Remove event title from the rendered element
                 element.find('.fc-title').remove();
             }
@@ -204,7 +204,7 @@ export default class FullCalendarJs extends LightningElement {
 
     saveEvent() {
         this.openSpinner = true;
-        this.template.querySelectorAll('lightning-input').forEach(ele => {           
+        this.template.querySelectorAll('lightning-input').forEach(ele => {
             if (ele.name === 'start') {
                 this.curEvent.start = new Date(ele.value).toISOString();
             }
@@ -270,7 +270,7 @@ export default class FullCalendarJs extends LightningElement {
             .then(() => {
                 const ele = this.template.querySelector("div.fullcalendarjs");
                 $(ele).fullCalendar('removeEvents', [this.selectedId]);
-                
+
                 this.selectedId = null;
                 this.openModal = false;
                 this.curEvent = DEFAULT_FORM;
@@ -453,7 +453,7 @@ export default class FullCalendarJs extends LightningElement {
     }
 
     getWeekdayName(date) {
-        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', ];
         return days[date.getDay()];
     }
 
@@ -467,22 +467,46 @@ export default class FullCalendarJs extends LightningElement {
         this.localTime.end = new Date(new Date(event.end) - timezoneOffset);
     }
 
-    // get sortedEvents() {
-    //     return [...this.events].sort((a, b) => a.title.localeCompare(b.title));
-    // }
+    getWeekNumber(date) {
+        const startOfYear = new Date(date.getFullYear(), 0, 1);
+        const pastDaysOfYear = (date - startOfYear) / 86400000 + 1;
+        return Math.ceil(pastDaysOfYear / 7);
+    }
 
     get groupedEvents() {
+        console.log('Calculating grouped events...');
         const grouped = this.events.reduce((acc, event) => {
-            const { title, start, end, weekday, hours } = event;
-            if (!acc[title]) {
-                acc[title] = { title, events: [], totalHours: 0 };
+            const { title, hours } = event;
+            const date = new Date(title);
+            const weekNumber = this.getWeekNumber(date);
+            const weekday = this.getWeekdayName(new Date(title));
+
+            // Initialize week group if not exists
+            if (!acc[weekNumber]) {
+                acc[weekNumber] = { weekNumber, weeks: [], weeklyTotalHours: 0 };
             }
-            acc[title].events.push({ ...event, weekday });
-            acc[title].totalHours += hours;
+
+            // Find or create title group within week
+            let weekGroup = acc[weekNumber].weeks.find(group => group.title === title);
+            if (!weekGroup) {
+                weekGroup = { title, events: [], dailyTotalHours: 0, weekday };
+                acc[weekNumber].weeks.push(weekGroup);
+            }
+
+            // Add event to title group
+            weekGroup.events.push(event);
+            weekGroup.dailyTotalHours += hours;
+            acc[weekNumber].weeklyTotalHours += hours;
             return acc;
         }, {});
 
-        // Convert the grouped object to an array and sort by title
-        return Object.values(grouped).sort((a, b) => a.title.localeCompare(b.title));
+        // Sort each week's title groups by title
+        for (let weekNumber in grouped) {
+            grouped[weekNumber].weeks.sort((a, b) => a.title.localeCompare(b.title));
+        }
+
+        const groupedArray = Object.values(grouped).sort((a, b) => a.weekNumber - b.weekNumber);
+        console.log('Grouped events:', JSON.stringify(groupedArray));
+        return groupedArray;
     }
 }

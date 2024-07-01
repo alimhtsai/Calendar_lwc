@@ -71,7 +71,6 @@ export default class FullCalendarJs extends LightningElement {
         if (!this.calendarLoaded || this.events.length === 0) {
             return;
         }
-        // load jQuery
         this.initialiseFullCalendarJs();
     }
 
@@ -233,14 +232,14 @@ export default class FullCalendarJs extends LightningElement {
         this.createTitleBasedOnStartDate();
 
         // convert time zone for displaying on calendar
-        let newUtcTimeEvent = {
+        const newUtcTimeEvent = {
             title: this.selectedEvent.title,
             start: this.utcTime.start.toISOString(),
             end: this.utcTime.end.toISOString(),
             hours: this.selectedEvent.hours
         };
 
-        let newLocalTimeEvent = {
+        const newLocalTimeEvent = {
             title: this.selectedEvent.title,
             start: this.selectedEvent.start,
             end: this.selectedEvent.end,
@@ -307,7 +306,7 @@ export default class FullCalendarJs extends LightningElement {
                 const ele = this.template.querySelector("div.fullcalendarjs");
 
                 // find the event object to update: https://fullcalendar.io/docs/v3/clientEvents
-                let calendarEvent = $(ele).fullCalendar('clientEvents', this.selectedEvent.id)[0];
+                const calendarEvent = $(ele).fullCalendar('clientEvents', this.selectedEvent.id)[0];
                 calendarEvent.id = this.selectedEvent.id;
                 calendarEvent.start = this.utcTime.start.toISOString();
                 calendarEvent.end = this.utcTime.end.toISOString();
@@ -398,8 +397,8 @@ export default class FullCalendarJs extends LightningElement {
     }
 
     async confirmRemoval() {
-        let { message, variant, label } = CONFIRM_REMOVAL;
-        let confirmRemovalResult = await LightningConfirm.open({
+        const { message, variant, label } = CONFIRM_REMOVAL;
+        const confirmRemovalResult = await LightningConfirm.open({
             message: message,
             variant: variant,
             label: label
@@ -410,7 +409,7 @@ export default class FullCalendarJs extends LightningElement {
     }
 
     openForm(startDate, endDate) {
-        let event = {
+        const event = {
             start: startDate,
             end: endDate
         };
@@ -477,7 +476,7 @@ export default class FullCalendarJs extends LightningElement {
             let weekNumber = this.getWeekNumber(date);
             let weekday = this.getWeekdayName(date);
 
-            // initialize week group if not exists
+            // initialize week number group if not exists
             if (!groupedEvents[weekNumber]) {
                 groupedEvents[weekNumber] = { 
                     weekNumber, 
@@ -486,7 +485,7 @@ export default class FullCalendarJs extends LightningElement {
                 };
             }
 
-            // find or create title group within week
+            // find or create week group within week
             let weekGroup = groupedEvents[weekNumber].weeks.find(group => group.title === title);
             if (!weekGroup) {
                 weekGroup = { 
@@ -498,7 +497,7 @@ export default class FullCalendarJs extends LightningElement {
                 groupedEvents[weekNumber].weeks.push(weekGroup);
             }
 
-            // add event to title group
+            // add event to week group
             weekGroup.events.push(event);
             weekGroup.dailyTotalHours += hours;
             groupedEvents[weekNumber].weeklyTotalHours += hours;
@@ -509,7 +508,7 @@ export default class FullCalendarJs extends LightningElement {
             groupedEvents[weekNumber].weeks.sort((a, b) => a.title.localeCompare(b.title));
         }
 
-        let groupedEventsArray = Object.values(groupedEvents).sort((a, b) => a.weekNumber - b.weekNumber);
+        const groupedEventsArray = Object.values(groupedEvents).sort((a, b) => a.weekNumber - b.weekNumber);
         return groupedEventsArray;
     }
 }

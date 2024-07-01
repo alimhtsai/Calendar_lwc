@@ -12,6 +12,7 @@ const DEFAULT_FORM = {
     title: "",
     start: "",
     end: "",
+    weekday: "",
     hours: 0
 };
 const DEFAULT_LOCAL_TIME = {
@@ -447,6 +448,13 @@ export default class FullCalendarJs extends LightningElement {
 
     createTitleBasedOnStartDate() {
         this.curEvent.title = new Date(this.curEvent.start).toISOString().split('T')[0];
+        this.curEvent.weekday = this.getWeekdayName(new Date(this.curEvent.title));
+        console.log('this.curEvent.weekday: ', this.curEvent.weekday);
+    }
+
+    getWeekdayName(date) {
+        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        return days[date.getDay()];
     }
 
     convertUtcTime() {
@@ -457,5 +465,24 @@ export default class FullCalendarJs extends LightningElement {
     convertLocalTime(event) {
         this.localTime.start = new Date(new Date(event.start) - timezoneOffset);
         this.localTime.end = new Date(new Date(event.end) - timezoneOffset);
+    }
+
+    // get sortedEvents() {
+    //     return [...this.events].sort((a, b) => a.title.localeCompare(b.title));
+    // }
+
+    get groupedEvents() {
+        const grouped = this.events.reduce((acc, event) => {
+            const { title, start, end, weekday, hours } = event;
+            if (!acc[title]) {
+                acc[title] = { title, events: [], totalHours: 0 };
+            }
+            acc[title].events.push({ ...event, weekday });
+            acc[title].totalHours += hours;
+            return acc;
+        }, {});
+
+        // Convert the grouped object to an array and sort by title
+        return Object.values(grouped).sort((a, b) => a.title.localeCompare(b.title));
     }
 }

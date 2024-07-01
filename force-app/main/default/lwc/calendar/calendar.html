@@ -22,16 +22,16 @@
                     </div>
                 </div> -->
 
-                <template for:each={events} for:item="eachevent">
+                <!-- <template for:each={sortedEvents} for:item="eachevent">
                     <lightning-card key={eachevent.id} class="slds-p-left_medium slds-p-right_small">
-                        <h3 slot="title">
+                        <h4 slot="title">
                             <span class="slds-p-right_small">
                                 <lightning-icon icon-name="standard:event" size="small">
                                 </lightning-icon>
                             </span>
-                            {eachevent.title}
-                        </h3>
 
+                        </h4>
+                        
                         <lightning-button-icon class="button edit-button cursor" icon-name="action:edit" slot="actions"
                             alternative-text="edit" title="Edit" value={eachevent.id} size="small"
                             onclick={editEventHandler} data-recordid={eachevent.id}>
@@ -42,21 +42,24 @@
                             onclick={removeEventHandler} data-recordid={eachevent.id}>
                         </lightning-button-icon>
 
-                        <p class="slds-p-horizontal_small"> Start:
-                            <lightning-formatted-date-time value={eachevent.start} year="numeric" month="numeric"
-                                day="numeric" hour="2-digit" minute="2-digit" time-zone-name="short" hour12="true">
-                            </lightning-formatted-date-time>
+                    </lightning-card>
+                </template> -->
+
+                <template for:each={groupedEvents} for:item="group">
+                    <lightning-card key={group.title} class="slds-p-left_medium slds-p-right_small">
+                        <h4 slot="title">{group.title}</h4>
+                        <p class="slds-p-horizontal_small">
+                            <lightning-formatted-text value={group.weekday}></lightning-formatted-text>
                         </p>
-                        <p class="slds-p-horizontal_small"> End:
-                            <lightning-formatted-date-time value={eachevent.end} year="numeric" month="numeric"
-                                day="numeric" hour="2-digit" minute="2-digit" time-zone-name="short" hour12="true">
-                            </lightning-formatted-date-time>
-                        </p>
-                        <p class="slds-p-horizontal_small"> Work Hours:
-                            <lightning-formatted-number value={eachevent.hours}
+                        <!-- <template for:each={group.events} for:item="event">
+                            <p key={event.id} class="slds-p-horizontal_small">
+                                Start Date: {event.start}, Weekday: {event.weekday}, Hours: {event.hours}
+                            </p>
+                        </template> -->
+                        <p class="slds-p-horizontal_small">
+                            Total Work Hours: <lightning-formatted-number value={group.totalHours}
                                 format-style="decimal"></lightning-formatted-number>
                         </p>
-
                     </lightning-card>
                 </template>
             </div>
@@ -101,14 +104,18 @@
 
                     <footer class="slds-modal__footer">
                         <div class="slds-grid slds-grid_align-spread slds-p-horizontal_small">
-                            <lightning-button label="Delete" title="Delete" icon-name="utility:delete"
-                                variant="destructive" onclick={removeEventHandler}></lightning-button>
-                            <lightning-button-group>
-                                <lightning-button label="Close" title="Close" icon-name="utility:close"
-                                    onclick={cancelEventHandler}></lightning-button>
-                                <lightning-button label="Save" title="Save" variant="brand" icon-name="utility:save"
-                                    onclick={saveEventHandler}></lightning-button>
-                            </lightning-button-group>
+                            <template if:true={selectedId}>
+                                <lightning-button label="Delete" title="Delete" icon-name="utility:delete"
+                                    variant="destructive" onclick={removeEventHandler}></lightning-button>
+                            </template>
+                            <div class="slds-col_bump-left">
+                                <lightning-button-group>
+                                    <lightning-button label="Close" title="Close" icon-name="utility:close"
+                                        onclick={cancelEventHandler}></lightning-button>
+                                    <lightning-button label="Save" title="Save" variant="brand" icon-name="utility:save"
+                                        onclick={saveEventHandler}></lightning-button>
+                                </lightning-button-group>
+                            </div>
                         </div>
                     </footer>
 

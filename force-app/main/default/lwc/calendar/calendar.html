@@ -15,7 +15,7 @@
         <div class="slds-col slds-size_3-of-12">
             <div class="slds-p-around_medium slds-border_right slds-scrollable_y" style="height:800px">
 
-                <template for:each={groupedEvents} for:item="weekNumberGroup">
+                <template for:each={groupedEventsBasedOnWeekNumber} for:item="weekNumberGroup">
                     <lightning-card key={weekNumberGroup.weekNumber} class="slds-p-left_medium">
                         <h4 slot="title">
                             <span class="slds-p-right_small">
@@ -29,7 +29,10 @@
                         </h4>
                         <template for:each={weekNumberGroup.weeks} for:item="weekGroup">
                             <div key={weekGroup.title} class="slds-p-left_medium slds-p-right_medium">
-                                <h4>{weekGroup.title} ({weekGroup.weekday}) Daily Hours {weekGroup.dailyTotalHours}
+                                <h4>{weekGroup.title} ({weekGroup.weekday}) Daily Hours
+                                    <lightning-formatted-number class="slds-p-left_x-small slds-text-color_error"
+                                        name="hours" value={weekGroup.dailyTotalHours} maximum-fraction-digits="2">
+                                    </lightning-formatted-number>
                                 </h4>
                                 <!-- <template for:each={titleGroup.events} for:item="event">
                                     <p key={event.id}>
@@ -65,17 +68,15 @@
 
                     <div class="slds-modal__content slds-p-around_medium" id="modal-content-id-1">
                         <lightning-input label="Start Date" name="start" type="datetime" timezone="GMT"
-                            onchange={changeHandler} value={curEvent.start} required></lightning-input>
+                            onchange={changeHandler} value={selectedEvent.start} required></lightning-input>
                         <lightning-input label="End Date" name="end" type="datetime" timezone="GMT"
-                            onchange={changeHandler} value={curEvent.end} required></lightning-input>
-                        <!-- <lightning-formatted-number label="Work Hour" name="hours" value={curEvent.hours}
-                            maximum-fraction-digits="2"></lightning-formatted-number> -->
+                            onchange={changeHandler} value={selectedEvent.end} required></lightning-input>
                         <div class="slds-form-element">
                             <label class="slds-form-element__label slds-text-title_bold" for="workHours">Work
                                 Hour</label>
                             <div class="slds-form-element__control">
                                 <lightning-formatted-number class="slds-text-color_error" name="hours"
-                                    value={curEvent.hours} maximum-fraction-digits="2">
+                                    value={selectedEvent.hours} maximum-fraction-digits="2">
                                 </lightning-formatted-number>
                             </div>
                         </div>

@@ -23,23 +23,41 @@ const DEFAULT_UTC_TIME = {
     start: new Date(),
     end: new Date()
 };
-const timezoneOffset = (new Date()).getTimezoneOffset() * 60000;
+const CONFIRM_REMOVAL = {
+    message: 'Are you sure you want to delete this event?',
+    variant: 'headerless',
+    label: 'Delete Confirmation'
+};
+const TOAST_MESSAGE = {
+    create: 'Your event is created!',
+    update: 'Your event is updated!',
+    delete: 'Your event is deleted!'
+}; 
+const TOAST_VARIANT = {
+    success: 'success',
+    error: 'error'
+};
+const TIMEZONE_OFFSET = (new Date()).getTimezoneOffset() * 60000;
+const START_OF_THE_YEAR = new Date(new Date().getFullYear(), 0, 1); // January 1st of the current year
+const MILLISECONDS_PER_HOUR = 1000 * 60 * 60;
+const MILLISECONDS_PER_YEAR = 1000 * 60 * 60 * 24;
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', ];
 
 export default class FullCalendarJs extends LightningElement {
 
-    @track curEvent = DEFAULT_FORM;
-    @track localTime = DEFAULT_LOCAL_TIME;
-    @track utcTime = DEFAULT_UTC_TIME;
-
+    @track selectedEvent = DEFAULT_FORM;
     @track events = []; // all calendar events are stored in this field
-    eventOriginalData = []; // to store the orignal wire object to use in refreshApex method
+    @track eventOriginalData = []; // to store the orignal wire object to use in refreshApex method
+    localTime = DEFAULT_LOCAL_TIME;
+    utcTime = DEFAULT_UTC_TIME;
 
     selectedId;
+    eventRecord;
     fullCalendarJsInitialised = false;
-    calendarLoaded = false
+    calendarLoaded = false;
     eventsRendered = false;
     openSpinner = false;
-    openModal = false
+    openModal = false;
 
     /**
      * @description avoid race condition
@@ -91,12 +109,10 @@ export default class FullCalendarJs extends LightningElement {
                 $(ele).fullCalendar('renderEvents', this.events, true);
             }
 
-            console.log('Finish fetching!');
-
         } else if (error) {
             this.events = [];
             console.error('Error occured in fetching', error)
-            this.showToast(error.message.body, 'error');
+            this.showToast(error.message.body, this.TOAST_VARIANT.error);
         }
     }
 
@@ -147,7 +163,6 @@ export default class FullCalendarJs extends LightningElement {
     initialiseFullCalendarJs() {
 
         const ele = this.template.querySelector('div.fullcalendarjs');
-        // const modal = this.template.querySelector('div.modalclass');
 
         var self = this;
 
@@ -178,25 +193,25 @@ export default class FullCalendarJs extends LightningElement {
 
             // https://fullcalendar.io/docs/v3/eventClick
             eventClick: function (calEvent, jsEvent, view) {
-                this.curEvent = calEvent;
+                this.selectedEvent = calEvent;
                 self.editEventClickHandler(calEvent);
             },
 
             // https://fullcalendar.io/docs/v3/eventDrop
             eventDrop: function (event, delta, revertFunc) {
-                this.curEvent = event;
+                this.selectedEvent = event;
                 self.dropEventHandler(event);
             },
 
             // https://fullcalendar.io/docs/v3/eventResize
             eventResize: function (event, delta, revertFunc) {
-                this.curEvent = event;
+                this.selectedEvent = event;
                 self.resizeEventHandler(event);
             },
 
             // https://fullcalendar.io/docs/v3/eventRender
             eventRender: function (event, element) {
-                // Remove event title from the rendered element
+                // remove event title from the rendered element
                 element.find('.fc-title').remove();
             }
         });
@@ -206,37 +221,31 @@ export default class FullCalendarJs extends LightningElement {
         this.openSpinner = true;
         this.template.querySelectorAll('lightning-input').forEach(ele => {
             if (ele.name === 'start') {
-                this.curEvent.start = new Date(ele.value).toISOString();
+                this.selectedEvent.start = new Date(ele.value).toISOString();
             }
             if (ele.name === 'end') {
-                this.curEvent.end = new Date(ele.value).toISOString();
+                this.selectedEvent.end = new Date(ele.value).toISOString();
             }
         });
 
-        // convert time zone for displaying on calendar
         this.convertUtcTime();
         this.calculateWorkingHours();
         this.createTitleBasedOnStartDate();
 
+        // convert time zone for displaying on calendar
         let newUtcTimeEvent = {
-            title: this.curEvent.title,
+            title: this.selectedEvent.title,
             start: this.utcTime.start.toISOString(),
             end: this.utcTime.end.toISOString(),
-            hours: this.curEvent.hours
+            hours: this.selectedEvent.hours
         };
 
-        // for saving back to server
         let newLocalTimeEvent = {
-            title: this.curEvent.title,
-            start: this.curEvent.start,
-            end: this.curEvent.end,
-            hours: this.curEvent.hours
+            title: this.selectedEvent.title,
+            start: this.selectedEvent.start,
+            end: this.selectedEvent.end,
+            hours: this.selectedEvent.hours
         }
-
-        console.log('newUtcTimeEvent.start: ', JSON.stringify(newUtcTimeEvent.start));
-        console.log('newLocalTimeEvent.start: ', JSON.stringify(newLocalTimeEvent.start));
-
-        this.openModal = false;
 
         createEvent({ 'event': JSON.stringify(newLocalTimeEvent) })
             .then(result => {
@@ -246,89 +255,97 @@ export default class FullCalendarJs extends LightningElement {
                 const ele = this.template.querySelector("div.fullcalendarjs");
                 $(ele).fullCalendar('renderEvent', newUtcTimeEvent, true);
 
-                // to display on UI with id from server
                 this.events.push(newLocalTimeEvent);
+                this.selectedId = null;
+                this.selectedEvent = DEFAULT_FORM;
 
+                this.showToast(TOAST_MESSAGE.create, TOAST_VARIANT.success);
                 this.openSpinner = false;
-                this.showToast('Your event is created!', 'success');
+                this.openModal = false;
                 this.refresh();
             })
             .catch(error => {
                 console.error('Error occured on saveEvent', error);
+                this.showToast(error.message.body, TOAST_VARIANT.error);
                 this.openSpinner = false;
-                this.showToast(error.message.body, 'error');
+                this.openModal = false;
             })
     }
 
-    /**
-    * @description: remove the event with id
-    * @documentation: https://fullcalendar.io/docs/v3/removeEvents
-    */
     removeEvent() {
         this.openSpinner = true;
         deleteEvent({ 'eventId': this.selectedId })
             .then(() => {
                 const ele = this.template.querySelector("div.fullcalendarjs");
+
+                // remove the event with id: https://fullcalendar.io/docs/v3/removeEvents
                 $(ele).fullCalendar('removeEvents', [this.selectedId]);
 
                 this.selectedId = null;
-                this.openModal = false;
-                this.curEvent = DEFAULT_FORM;
+                this.selectedEvent = DEFAULT_FORM;
 
-                this.showToast('Your event is deleted!', 'success');
+                this.showToast(TOAST_MESSAGE.delete, TOAST_VARIANT.success);
                 this.openSpinner = false;
+                this.openModal = false;
                 this.refresh();
             })
             .catch(error => {
                 console.error('Error occured on removeEvent', error);
-                this.showToast(error.message.body, 'error');
+                this.showToast(error.message.body, TOAST_VARIANT.error);
                 this.openSpinner = false;
                 this.openModal = false;
             });
     }
 
-    /**
-    * @description: edit the event with id
-    * @documentation: https://fullcalendar.io/docs/v3/updateEvent
-    */
     editEvent() {
         this.openSpinner = true;
         this.convertUtcTime();
         this.calculateWorkingHours();
 
-        updateEvent({ 'eventId': this.selectedId, 'event': JSON.stringify(this.curEvent) })
+        updateEvent({ 'eventId': this.selectedId, 'event': JSON.stringify(this.selectedEvent) })
             .then(() => {
                 const ele = this.template.querySelector("div.fullcalendarjs");
 
-                // find the event to update: https://fullcalendar.io/docs/v3/clientEvents
-                let calendarEvent = $(ele).fullCalendar('clientEvents', this.curEvent.id)[0];
-                calendarEvent.id = this.curEvent.id;
+                // find the event object to update: https://fullcalendar.io/docs/v3/clientEvents
+                let calendarEvent = $(ele).fullCalendar('clientEvents', this.selectedEvent.id)[0];
+                calendarEvent.id = this.selectedEvent.id;
                 calendarEvent.start = this.utcTime.start.toISOString();
                 calendarEvent.end = this.utcTime.end.toISOString();
-                calendarEvent.hours = this.curEvent.hours;
+                calendarEvent.hours = this.selectedEvent.hours;
 
-                // update the event in the calendar
+                // edit the event object with id: https://fullcalendar.io/docs/v3/updateEvent
                 $(ele).fullCalendar('updateEvent', calendarEvent);
 
                 this.selectedId = null;
-                this.openModal = false;
-                this.curEvent = DEFAULT_FORM;
-
-                this.showToast('Your event is updated!', 'success');
+                this.selectedEvent = DEFAULT_FORM;
+                
+                this.showToast(TOAST_MESSAGE.update, TOAST_VARIANT.success);
                 this.openSpinner = false;
+                this.openModal = false;
                 this.refresh();
             })
             .catch(error => {
                 console.error('Error occured on editEvent', error);
-                this.showToast(error.message.body, 'error');
+                this.showToast(error.message.body, TOAST_VARIANT.error);
                 this.openSpinner = false;
+                this.openModal = false;
             })
+    }
+
+    addEventHandler() {
+        this.selectedEvent = DEFAULT_FORM;
+        this.openModal = true;
+    }
+
+    removeEventHandler() {
+        this.selectedId = this.selectedEvent.id;
+        this.confirmRemoval();
     }
 
     cancelEventHandler() {
         this.openModal = false;
         this.selectedId = null;
-        this.curEvent = DEFAULT_FORM;
+        this.selectedEvent = DEFAULT_FORM;
     }
 
     saveEventHandler(event) {
@@ -342,71 +359,52 @@ export default class FullCalendarJs extends LightningElement {
 
     changeHandler(event) {
         const { name, value } = event.target;
-        this.curEvent = { ...this.curEvent, [name]: value };
+        this.selectedEvent = { ...this.selectedEvent, [name]: value };
         this.calculateWorkingHours();
-        console.log('this.curEvent: ', JSON.stringify(this.curEvent));
-    }
-
-    editEventHandler(event) {
-        this.selectedId = event.target.dataset.recordid;
-        const eventRecord = this.events.find(item => item.id === this.selectedId);
-        this.curEvent.id = eventRecord.id;
-        this.openModal = true;
-        this.handleTimeOffset(eventRecord);
     }
 
     editEventClickHandler(event) {
         this.selectedId = event.id;
-        const eventRecord = this.events.find(item => item.id === this.selectedId);
-        this.curEvent.id = eventRecord.id;
+        this.findEventRecord();
         this.openModal = true;
-        this.handleTimeOffset(eventRecord);
+        this.handleTimeOffset(this.eventRecord);
     }
 
     dropEventHandler(event) {
         this.selectedId = event.id;
-        const eventRecord = this.events.find(item => item.id === this.selectedId);
-        this.curEvent.id = eventRecord.id;
+        this.findEventRecord();
         this.openModal = true;
         this.handleTimeOffset(event);
     }
 
     resizeEventHandler(event) {
         this.selectedId = event.id;
-        const eventRecord = this.events.find(item => item.id === this.selectedId);
-        this.curEvent.id = eventRecord.id;
+        this.findEventRecord();
         this.openModal = true;
         this.handleTimeOffset(event);
     }
 
+    findEventRecord() {
+        this.eventRecord = this.events.find(item => item.id === this.selectedId);
+        this.selectedEvent.id = this.eventRecord.id;
+    }
+
     handleTimeOffset(event) {
         this.convertLocalTime(event);
-        this.curEvent.start = this.localTime.start.toISOString();
-        this.curEvent.end = this.localTime.end.toISOString();
+        this.selectedEvent.start = this.localTime.start.toISOString();
+        this.selectedEvent.end = this.localTime.end.toISOString();
         this.createTitleBasedOnStartDate();
         this.calculateWorkingHours();
     }
 
-    addEventHandler() {
-        this.openModal = true;
-        this.curEvent = DEFAULT_FORM;
-        this.localTime = DEFAULT_LOCAL_TIME;
-        this.utcTime = DEFAULT_UTC_TIME;
-    }
-
-    removeEventHandler() {
-        this.selectedId = this.curEvent.id;
-        console.log('selectedId: ', this.selectedId);
-        this.confirmRemoval();
-    }
-
     async confirmRemoval() {
-        const result = await LightningConfirm.open({
-            message: 'Are you sure you want to delete this event?',
-            variant: 'headerless',
-            label: 'Delete Confirmation'
+        let { message, variant, label } = CONFIRM_REMOVAL;
+        let confirmRemovalResult = await LightningConfirm.open({
+            message: message,
+            variant: variant,
+            label: label
         });
-        if (result) {
+        if (confirmRemovalResult) {
             this.removeEvent();
         }
     }
@@ -417,8 +415,8 @@ export default class FullCalendarJs extends LightningElement {
             end: endDate
         };
         this.convertLocalTime(event);
-        this.curEvent.start = this.localTime.start.toISOString();
-        this.curEvent.end = this.localTime.end.toISOString();
+        this.selectedEvent.start = this.localTime.start.toISOString();
+        this.selectedEvent.end = this.localTime.end.toISOString();
         this.calculateWorkingHours();
         this.openModal = true;
     }
@@ -439,74 +437,79 @@ export default class FullCalendarJs extends LightningElement {
     }
 
     calculateWorkingHours() {
-        const startDate = new Date(this.curEvent.start);
-        const endDate = new Date(this.curEvent.end);
-        const millisecondsPerHour = 1000 * 60 * 60;
-        const hours = (endDate - startDate) / millisecondsPerHour;
-        this.curEvent.hours = hours.toFixed(2); // Update the hours with two decimal places
+        let startDate = new Date(this.selectedEvent.start);
+        let endDate = new Date(this.selectedEvent.end);
+        let hours = (endDate - startDate) / MILLISECONDS_PER_HOUR;
+        this.selectedEvent.hours = hours.toFixed(2); // Update the hours with two decimal places
     }
 
     createTitleBasedOnStartDate() {
-        this.curEvent.title = new Date(this.curEvent.start).toISOString().split('T')[0];
-        this.curEvent.weekday = this.getWeekdayName(new Date(this.curEvent.title));
-        console.log('this.curEvent.weekday: ', this.curEvent.weekday);
+        this.selectedEvent.title = new Date(this.selectedEvent.start).toISOString().split('T')[0];
+        this.selectedEvent.weekday = this.getWeekdayName(new Date(this.selectedEvent.title));
     }
 
     getWeekdayName(date) {
-        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun', ];
-        return days[date.getDay()];
-    }
-
-    convertUtcTime() {
-        this.utcTime.start = new Date(new Date(this.curEvent.start).getTime() + timezoneOffset);
-        this.utcTime.end = new Date(new Date(this.curEvent.end).getTime() + timezoneOffset);
-    }
-
-    convertLocalTime(event) {
-        this.localTime.start = new Date(new Date(event.start) - timezoneOffset);
-        this.localTime.end = new Date(new Date(event.end) - timezoneOffset);
+        return WEEKDAYS[date.getDay()];
     }
 
     getWeekNumber(date) {
-        const startOfYear = new Date(date.getFullYear(), 0, 1);
-        const pastDaysOfYear = (date - startOfYear) / 86400000 + 1;
-        return Math.ceil(pastDaysOfYear / 7);
+        let pastDaysOfYear = ((date - START_OF_THE_YEAR) / MILLISECONDS_PER_YEAR) + 1;
+        return Math.ceil(pastDaysOfYear / WEEKDAYS.length);
     }
 
-    get groupedEvents() {
-        console.log('Calculating grouped events...');
-        const grouped = this.events.reduce((acc, event) => {
-            const { title, hours } = event;
-            const date = new Date(title);
-            const weekNumber = this.getWeekNumber(date);
-            const weekday = this.getWeekdayName(new Date(title));
+    convertUtcTime() {
+        this.utcTime.start = new Date(new Date(this.selectedEvent.start).getTime() + TIMEZONE_OFFSET);
+        this.utcTime.end = new Date(new Date(this.selectedEvent.end).getTime() + TIMEZONE_OFFSET);
+    }
 
-            // Initialize week group if not exists
-            if (!acc[weekNumber]) {
-                acc[weekNumber] = { weekNumber, weeks: [], weeklyTotalHours: 0 };
+    convertLocalTime(event) {
+        this.localTime.start = new Date(new Date(event.start) - TIMEZONE_OFFSET);
+        this.localTime.end = new Date(new Date(event.end) - TIMEZONE_OFFSET);
+    }
+
+    get groupedEventsBasedOnWeekNumber() {
+
+        let groupedEvents = {};
+
+        this.events.forEach(event => {
+            let { title, hours } = event;
+            let date = new Date(title);
+            let weekNumber = this.getWeekNumber(date);
+            let weekday = this.getWeekdayName(date);
+
+            // initialize week group if not exists
+            if (!groupedEvents[weekNumber]) {
+                groupedEvents[weekNumber] = { 
+                    weekNumber, 
+                    weeks: [], 
+                    weeklyTotalHours: 0 
+                };
             }
 
-            // Find or create title group within week
-            let weekGroup = acc[weekNumber].weeks.find(group => group.title === title);
+            // find or create title group within week
+            let weekGroup = groupedEvents[weekNumber].weeks.find(group => group.title === title);
             if (!weekGroup) {
-                weekGroup = { title, events: [], dailyTotalHours: 0, weekday };
-                acc[weekNumber].weeks.push(weekGroup);
+                weekGroup = { 
+                    title, 
+                    weekday,
+                    events: [], 
+                    dailyTotalHours: 0, 
+                };
+                groupedEvents[weekNumber].weeks.push(weekGroup);
             }
 
-            // Add event to title group
+            // add event to title group
             weekGroup.events.push(event);
             weekGroup.dailyTotalHours += hours;
-            acc[weekNumber].weeklyTotalHours += hours;
-            return acc;
-        }, {});
+            groupedEvents[weekNumber].weeklyTotalHours += hours;
+        });
 
-        // Sort each week's title groups by title
-        for (let weekNumber in grouped) {
-            grouped[weekNumber].weeks.sort((a, b) => a.title.localeCompare(b.title));
+        // sort each week's title groups by title
+        for (let weekNumber in groupedEvents) {
+            groupedEvents[weekNumber].weeks.sort((a, b) => a.title.localeCompare(b.title));
         }
 
-        const groupedArray = Object.values(grouped).sort((a, b) => a.weekNumber - b.weekNumber);
-        console.log('Grouped events:', JSON.stringify(groupedArray));
-        return groupedArray;
+        let groupedEventsArray = Object.values(groupedEvents).sort((a, b) => a.weekNumber - b.weekNumber);
+        return groupedEventsArray;
     }
 }

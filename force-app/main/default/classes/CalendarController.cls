@@ -1,4 +1,4 @@
-public with sharing class CalendarController {
+public without sharing class CalendarController {
 
     @AuraEnabled(cacheable=true)
     public static List<MyCalendar__c> fetchEvents() {

@@ -1,5 +1,10 @@
 public without sharing class CalendarController {
 
+    /**
+     * When an @AuraEnabled apex method is marked with cacheable=true, 
+     * the LWC won't let you modify the data returned directly. 
+     * We have to copy it to a different array or use it in read only format.
+     */
     @AuraEnabled(cacheable=true)
     public static List<MyCalendar__c> fetchEvents() {
         return [SELECT Id, Name, StartDateTime__c, EndDateTime__c, Hours__c 

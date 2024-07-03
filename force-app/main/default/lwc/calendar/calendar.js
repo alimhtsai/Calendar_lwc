@@ -115,12 +115,15 @@ export default class FullCalendarJs extends LightningElement {
         }
     }
 
+    /**
+     * @description Run code when the component is inserted into the DOM.
+     */
     connectedCallback() {
         this.renderedCallback();
     }
 
     /**
-     * @description Standard lifecyle method 'renderedCallback',
+     * @description Run code when a component renders.
      *              Ensures that the page loads and renders the container before doing anything else
      */
     renderedCallback() {
@@ -155,7 +158,7 @@ export default class FullCalendarJs extends LightningElement {
     }
 
     /**
-     * @description Initialise the calendar configuration
+     * @description Initialise the calendar configuration.
      *              This is where we configure the available options for the calendar.
      *              This is also where we load the Events data.
      */

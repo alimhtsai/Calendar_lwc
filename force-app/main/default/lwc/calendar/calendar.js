@@ -54,7 +54,6 @@ export default class FullCalendarJs extends LightningElement {
     selectedId;
     eventRecord;
     fullCalendarJsInitialised = false;
-    calendarLoaded = false;
     eventsRendered = false;
     openSpinner = false;
     openModal = false;
@@ -68,7 +67,7 @@ export default class FullCalendarJs extends LightningElement {
      * https://salesforce.stackexchange.com/questions/391810/fullcalendar-rendering-error-fullcalendar-is-not-a-function
      */
     renderCalendar() {
-        if (!this.calendarLoaded || this.events.length === 0) {
+        if (!this.fullCalendarJsInitialised || this.events.length === 0) {
             return;
         }
         this.initialiseFullCalendarJs();
@@ -144,7 +143,6 @@ export default class FullCalendarJs extends LightningElement {
             .then(() => {
                 // initialize the full calendar
                 this.fullCalendarJsInitialised = true;
-                this.calendarLoaded = true;
 
                 // render the calendar if data is ready
                 if (this.events.length > 0) {

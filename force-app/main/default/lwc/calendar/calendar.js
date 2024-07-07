@@ -466,10 +466,10 @@ export default class FullCalendarJs extends LightningElement {
         let groupedEvents = {};
 
         this.events.forEach(event => {
-            let { title, hours } = event;
-            let date = new Date(title);
-            let weekNumber = this.getWeekNumber(date);
-            let weekday = this.getWeekdayName(date);
+            const { title, hours } = event;
+            const date = new Date(title);
+            const weekNumber = this.getWeekNumber(date);
+            const weekday = this.getWeekdayName(date);
 
             // initialize week number group if not exists
             if (!groupedEvents[weekNumber]) {

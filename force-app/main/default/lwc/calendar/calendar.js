@@ -53,30 +53,15 @@ export default class FullCalendarJs extends LightningElement {
 
     selectedId;
     eventRecord;
-    fullCalendarJsInitialised = false;
+    fullCalendarJsIsLoaded = false;
     eventsRendered = false;
     openSpinner = false;
     openModal = false;
 
-    /**
-     * @description avoid race condition
-     * If $ loads before fetchEvents returns data, no error will appear. Otherwise, if the wire gets done first, 
-     * then $ is not defined and you'll get this error. This is known as a "race condition".
-     * You'll want a separate method to wait for this.events to be set and $ to be available, 
-     * then call that method from both places.
-     * https://salesforce.stackexchange.com/questions/391810/fullcalendar-rendering-error-fullcalendar-is-not-a-function
-     */
-    renderCalendar() {
-        if (!this.fullCalendarJsInitialised || this.events.length === 0) {
-            return;
-        }
-        this.initialiseFullCalendarJs();
-    }
-
     @wire(fetchEvents)
     eventList(value) {
 
-        console.log('start fecthing...');
+        console.log('Start fecthing...');
 
         this.eventOriginalData = value; // to use in refresh cache
         const { data, error } = value;
@@ -98,8 +83,9 @@ export default class FullCalendarJs extends LightningElement {
 
             // render the calendar if data is ready
             if (!this.eventsRendered) {
-                this.renderCalendar();
+                this.checkIfReadyToRenderCalendar();
                 this.eventsRendered = true;
+                console.log('Finish rendering events');
             } else {
                 // https://fullcalendar.io/docs/v3/renderEvents
                 const ele = this.template.querySelector("div.fullcalendarjs");
@@ -115,19 +101,13 @@ export default class FullCalendarJs extends LightningElement {
     }
 
     /**
-     * @description Run code when the component is inserted into the DOM.
-     */
-    connectedCallback() {
-        this.renderedCallback();
-    }
-
-    /**
      * @description Run code when a component renders.
      *              Ensures that the page loads and renders the container before doing anything else
      */
     renderedCallback() {
 
-        if (this.fullCalendarJsInitialised) {
+        // only load fullCalendar scripts once
+        if (this.fullCalendarJsIsLoaded) {
             return;
         }
 
@@ -141,14 +121,13 @@ export default class FullCalendarJs extends LightningElement {
             // loadStyle(this, FullCalendarJS + '/fullcalendar.print.min.css')
         ])
             .then(() => {
-                // initialize the full calendar
-                this.fullCalendarJsInitialised = true;
-
-                // render the calendar if data is ready
-                if (this.events.length > 0) {
-                    this.renderCalendar();
+                this.fullCalendarJsIsLoaded = true;
+                
+                // render the calendar if event data is ready
+                if (this.eventsRendered) {
+                    this.checkIfReadyToRenderCalendar();
+                    console.log('Finish loading fullCalendarJS scripts');
                 }
-                this.initialiseFullCalendarJs();
             })
             .catch(error => {
                 console.error('Error occured on FullCalendarJS', error);
@@ -156,11 +135,25 @@ export default class FullCalendarJs extends LightningElement {
     }
 
     /**
+     * @description avoid race condition
+     * If $ loads before fetchEvents returns data, no error will appear. Otherwise, if the wire gets done first, 
+     * then $ is not defined and you'll get this error. This is known as a "race condition".
+     * You'll want a separate method to wait for this.events to be set and $ to be available, 
+     * then call that method from both places.
+     * https://salesforce.stackexchange.com/questions/391810/fullcalendar-rendering-error-fullcalendar-is-not-a-function
+     */
+    checkIfReadyToRenderCalendar() {
+        if (this.fullCalendarJsIsLoaded && this.eventsRendered) {
+            this.initializeCalendar();
+        };
+    }
+
+    /**
      * @description Initialise the calendar configuration.
      *              This is where we configure the available options for the calendar.
-     *              This is also where we load the Events data.
+     *              This is also where we load the events data.
      */
-    initialiseFullCalendarJs() {
+    initializeCalendar() {
 
         const ele = this.template.querySelector('div.fullcalendarjs');
 
@@ -215,6 +208,7 @@ export default class FullCalendarJs extends LightningElement {
                 element.find('.fc-title').remove();
             }
         });
+        console.log('Finish initializing calendar');
     }
 
     saveEvent() {
